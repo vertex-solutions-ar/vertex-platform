@@ -38,7 +38,7 @@
     "@angular/forms": "^22.1.7",
     "@angular/platform-browser": "^22.1.7",
     "@angular/router": "^22.1.7",
-    "@types/node": "^22.20.3",
+    "@types/node": "^22.20.4",
     "@typescript-eslint/eslint-plugin": "^8.70.1",
     "@typescript-eslint/parser": "^8.61.1",
     "@vitest/coverage-v8": "^4.1.9",
