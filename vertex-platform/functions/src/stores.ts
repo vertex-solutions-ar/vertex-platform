@@ -790,7 +790,7 @@ export const redeployStore = onCall<{ storeId: string }>(
     });
 
     const res = await fetch(
-      'https://api.github.com/repos/Vertex-Tech-Devs/ecommerce-vertex/dispatches',
+      'https://api.github.com/repos/vertex-solutions-ar/ecommerce-vertex/dispatches',
       {
         method: 'POST',
         headers: {
@@ -889,7 +889,7 @@ async function dispatchStoreDeployment(storeId: string): Promise<void> {
         : targetRef;
 
   const res = await fetch(
-    'https://api.github.com/repos/Vertex-Tech-Devs/ecommerce-vertex/dispatches',
+    'https://api.github.com/repos/vertex-solutions-ar/ecommerce-vertex/dispatches',
     {
       method: 'POST',
       headers: {
@@ -1797,7 +1797,7 @@ export const getActiveStores = onCall(
     if (!isAdmin) {
       if (idToken) {
         const oidcValid = await verifyGitHubOidcToken(idToken, {
-          repository: 'Vertex-Tech-Devs/ecommerce-vertex',
+          repository: 'vertex-solutions-ar/ecommerce-vertex',
         });
         if (!oidcValid) {
           throw new HttpsError('permission-denied', 'Invalid GitHub OIDC token.');

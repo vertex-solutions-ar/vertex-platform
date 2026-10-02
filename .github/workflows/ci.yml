@@ -248,7 +248,7 @@ jobs:
         env:
           CROSS_REPO_PAT: ${{ secrets.CROSS_REPO_PAT }}
         run: |
-          git clone "https://x-access-token:${CROSS_REPO_PAT}@github.com/Vertex-Tech-Devs/ecommerce-vertex.git" ../ecommerce-vertex
+          git clone "https://x-access-token:${CROSS_REPO_PAT}@github.com/vertex-solutions-ar/ecommerce-vertex.git" ../ecommerce-vertex
 
       - name: Install storefront dependencies
         if: steps.mode.outputs.mode == 'real'

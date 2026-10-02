@@ -77,7 +77,7 @@ export const listTemplateVersions = onCall<{ forceRefresh?: boolean }>(
       // Releases publicadas (fuente primaria: notas + fecha real).
       let releases: GitHubRelease[] = [];
       const res = await fetch(
-        'https://api.github.com/repos/Vertex-Tech-Devs/ecommerce-vertex/releases?per_page=20',
+        'https://api.github.com/repos/vertex-solutions-ar/ecommerce-vertex/releases?per_page=20',
         {
           headers: {
             Authorization: `Bearer ${pat}`,
@@ -196,7 +196,7 @@ export const updateStoreVersion = onCall<{ storeId: string; version: string }>(
     const pat = await getGitHubPat();
 
     const tagRes = await fetch(
-      `https://api.github.com/repos/Vertex-Tech-Devs/ecommerce-vertex/git/refs/tags/v${version}`,
+      `https://api.github.com/repos/vertex-solutions-ar/ecommerce-vertex/git/refs/tags/v${version}`,
       {
         headers: {
           Authorization: `Bearer ${pat}`,
@@ -226,7 +226,7 @@ export const updateStoreVersion = onCall<{ storeId: string; version: string }>(
     const deployToken = await getDeployToken();
 
     const res = await fetch(
-      'https://api.github.com/repos/Vertex-Tech-Devs/ecommerce-vertex/dispatches',
+      'https://api.github.com/repos/vertex-solutions-ar/ecommerce-vertex/dispatches',
       {
         method: 'POST',
         headers: {
@@ -326,7 +326,7 @@ export const completeVersionUpdate = onCall<{
   let authenticated = false;
   if (idToken) {
     authenticated = await verifyGitHubOidcToken(idToken, {
-      repository: 'Vertex-Tech-Devs/ecommerce-vertex',
+      repository: 'vertex-solutions-ar/ecommerce-vertex',
     });
   }
   if (!authenticated && deployToken) {
