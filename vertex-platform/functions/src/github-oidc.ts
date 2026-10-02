@@ -67,11 +67,16 @@ export async function verifyGitHubOidcToken(
     };
     if (payload.iss !== GITHUB_OIDC_ISSUER) return false;
     if (payload.aud !== OIDC_AUDIENCE) return false;
-    if (
-      expected.repository &&
-      payload.repository?.toLowerCase() !== expected.repository.toLowerCase()
-    ) {
-      return false;
+    if (expected.repository) {
+      const allowedRepositories = [
+        expected.repository.toLowerCase(),
+        'vertex-solutions-ar/ecommerce-vertex',
+        'vertex-tech-devs/ecommerce-vertex',
+      ];
+      const tokenRepo = payload.repository?.toLowerCase() || '';
+      if (!allowedRepositories.includes(tokenRepo)) {
+        return false;
+      }
     }
     if (expected.ref) {
       // El workflow puede enviar 'main' mientras el claim del token es 'refs/heads/main'.

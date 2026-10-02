@@ -233,6 +233,6 @@ const secretCache = new Map<string, string>();
 
 ## 🔗 Repositorios relacionados
 
-- **Platform**: `https://github.com/Vertex-Tech-Devs/vertex-platform`
-- **Storefront**: `https://github.com/Vertex-Tech-Devs/ecommerce-vertex`
-- Ambos bajo la org `Vertex-Tech-Devs`
+- **Platform**: `https://github.com/vertex-solutions-ar/vertex-platform`
+- **Storefront**: `https://github.com/vertex-solutions-ar/ecommerce-vertex`
+- Ambos bajo la org `vertex-solutions-ar`
