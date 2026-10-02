@@ -1,3 +1,4 @@
+import * as crypto from 'crypto';
 import type { Firestore } from 'firebase-admin/firestore';
 import { SecretManagerServiceClient } from '@google-cloud/secret-manager';
 import { OAuth2Client, GoogleAuth } from 'google-auth-library';
@@ -196,7 +197,81 @@ export async function listProvisioningOwnerCandidates(
 }
 let cachedDeployToken: string | null = null;
 
+const GITHUB_APP_ID = process.env.GITHUB_APP_ID || '5157671';
+const GITHUB_APP_INSTALLATION_ID = process.env.GITHUB_APP_INSTALLATION_ID || '167069206';
+let cachedAppToken: { token: string; expiresAt: number } | null = null;
+let cachedPrivateKeyPem: string | null = null;
+
+export function _resetGitHubTokenCacheForTesting() {
+  cachedAppToken = null;
+  cachedPrivateKeyPem = null;
+  cachedGitHubPat = null;
+  cachedDeployToken = null;
+}
+
+export function generateGitHubAppJwt(appId: string, privateKeyPem: string): string {
+  const header = Buffer.from(JSON.stringify({ alg: 'RS256', typ: 'JWT' })).toString('base64url');
+  const now = Math.floor(Date.now() / 1000);
+  const payload = Buffer.from(
+    JSON.stringify({
+      iat: now - 60,
+      exp: now + 600,
+      iss: appId,
+    }),
+  ).toString('base64url');
+
+  const signer = crypto.createSign('RSA-SHA256');
+  signer.update(`${header}.${payload}`);
+  return `${header}.${payload}.${signer.sign(privateKeyPem, 'base64url')}`;
+}
+
+export async function getGitHubAppToken(
+  appId = GITHUB_APP_ID,
+  installationId = GITHUB_APP_INSTALLATION_ID,
+): Promise<string | null> {
+  const now = Date.now();
+  if (cachedAppToken && cachedAppToken.expiresAt > now + 60 * 1000) {
+    return cachedAppToken.token;
+  }
+
+  try {
+    if (!cachedPrivateKeyPem) {
+      const [version] = await secretsClient.accessSecretVersion({
+        name: `projects/${PLATFORM_PROJECT}/secrets/github-app-key/versions/latest`,
+      });
+      cachedPrivateKeyPem = version.payload?.data?.toString().trim() || null;
+    }
+
+    if (!cachedPrivateKeyPem) return null;
+
+    const jwt = generateGitHubAppJwt(appId, cachedPrivateKeyPem);
+    const res = await fetch(`https://api.github.com/app/installations/${installationId}/access_tokens`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${jwt}`,
+        Accept: 'application/vnd.github+json',
+      },
+    });
+
+    if (!res.ok) {
+      console.warn(`[getGitHubAppToken] Error fetching token (${res.status})`);
+      return null;
+    }
+
+    const data = (await res.json()) as { token: string; expires_at: string };
+    const expiresAt = new Date(data.expires_at).getTime();
+    cachedAppToken = { token: data.token, expiresAt };
+    return data.token;
+  } catch (err) {
+    console.warn('[getGitHubAppToken] Error generating GitHub App token, falling back to PAT:', err);
+    return null;
+  }
+}
+
 export async function getGitHubPat(): Promise<string> {
+  const appToken = await getGitHubAppToken();
+  if (appToken) return appToken;
+
   if (cachedGitHubPat) return cachedGitHubPat;
   const [version] = await secretsClient.accessSecretVersion({
     name: `projects/${PLATFORM_PROJECT}/secrets/github-pat/versions/latest`,
