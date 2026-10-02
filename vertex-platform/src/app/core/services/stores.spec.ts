@@ -117,7 +117,7 @@ describe('StoresService', () => {
       ownerEmail: 'owner@test.com',
     });
 
-    expect(mockHttpsCallable).toHaveBeenCalledWith(expect.anything(), 'provisionStore');
+    expect(mockHttpsCallable).toHaveBeenCalledWith(expect.anything(), 'provisionStoreV2');
     expect(result).toBe('abc123');
   });
 
@@ -411,7 +411,7 @@ describe('StoresService', () => {
     const service = TestBed.inject(StoresService);
 
     await service.retryProvisioning('store-abc');
-    expect(mockHttpsCallable).toHaveBeenCalledWith(expect.anything(), 'retryProvisioning');
+    expect(mockHttpsCallable).toHaveBeenCalledWith(expect.anything(), 'retryProvisioningV2');
     expect(mockFn).toHaveBeenCalledWith({ storeId: 'store-abc' });
   });
   it('updateStoreConfig calls updateStoreConfig cloud function', async () => {
