@@ -182,7 +182,7 @@ export class StoresService {
   })();
 
   async createStore(payload: CreateStorePayload): Promise<string> {
-    const fn = httpsCallable<CreateStorePayload, { storeId: string }>(this.fns, 'provisionStore');
+    const fn = httpsCallable<CreateStorePayload, { storeId: string }>(this.fns, 'provisionStoreV2');
     const result = await fn(payload);
     return result.data.storeId;
   }
@@ -521,7 +521,7 @@ export class StoresService {
   async retryProvisioning(storeId: string): Promise<void> {
     const fn = httpsCallable<{ storeId: string }, { success: boolean }>(
       this.fns,
-      'retryProvisioning',
+      'retryProvisioningV2',
     );
     await fn({ storeId });
   }

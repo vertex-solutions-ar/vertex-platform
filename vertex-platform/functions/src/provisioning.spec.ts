@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-// Mock firebase-admin before importing provisionStore
+// Mock firebase-admin before importing provisionStoreV2
 vi.mock('firebase-admin/firestore', () => ({
   getFirestore: vi.fn(),
 }));
@@ -49,7 +49,7 @@ import { HttpsError } from 'firebase-functions/v2/https';
 import {
   formatProjectDisplayName,
   normalizeAuthorizedDomain,
-  retryProvisioning,
+  retryProvisioningV2,
 } from './provisioning';
 
 const VALID_PAYLOAD = {
@@ -116,14 +116,14 @@ function makeDb(slugExists = false, mockShards: any[] = []) {
   };
 }
 
-describe('provisionStore handler', () => {
+describe('provisionStoreV2 handler', () => {
   let handler: (req: unknown) => Promise<unknown>;
 
   beforeEach(async () => {
     vi.clearAllMocks();
     const mod = await import('./provisioning');
-    // provisionStore is exported as the handler function (after vi.mock of onCall)
-    handler = mod.provisionStore as unknown as (req: unknown) => Promise<unknown>;
+    // provisionStoreV2 is exported as the handler function (after vi.mock of onCall)
+    handler = mod.provisionStoreV2 as unknown as (req: unknown) => Promise<unknown>;
   });
 
   it('rejects non-admin callers', async () => {
@@ -427,8 +427,8 @@ describe('normalizeAuthorizedDomain', () => {
   });
 });
 
-describe('retryProvisioning', () => {
-  const retryHandler = retryProvisioning as unknown as (req: {
+describe('retryProvisioningV2', () => {
+  const retryHandler = retryProvisioningV2 as unknown as (req: {
     auth: { token: Record<string, unknown> };
     data: { storeId: string };
   }) => Promise<{ success: boolean }>;

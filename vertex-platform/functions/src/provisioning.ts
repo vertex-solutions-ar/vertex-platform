@@ -842,14 +842,14 @@ async function createWebAppWithRetry(
   throw lastErr;
 }
 
-export const provisionStore = onCall<CreateStorePayload>(
+export const provisionStoreV2 = onCall<CreateStorePayload>(
   { cors: ALLOWED_ORIGINS, invoker: 'public', timeoutSeconds: 300, memory: '512MiB' },
   async (request) => {
     if (!request.auth?.token['platformAdmin']) {
       throw new HttpsError('permission-denied', 'Only platform admins can provision stores.');
     }
 
-    await checkRateLimit(request.auth?.uid, 'provisionStore', 5, 15);
+    await checkRateLimit(request.auth?.uid, 'provisionStoreV2', 5, 15);
 
     const {
       name,
@@ -1224,7 +1224,7 @@ export const provisionStore = onCall<CreateStorePayload>(
     await logAuditAction(
       request.auth?.uid || 'unknown',
       request.auth?.token.email as string | undefined,
-      'provisionStore',
+      'provisionStoreV2',
       storeId,
       'success',
       { name, slug, ownerEmail },
@@ -3635,13 +3635,13 @@ export const repairStoreAuthDomains = onCall<{ storeId: string }>(
   },
 );
 
-export const retryProvisioning = onCall<{ storeId: string }>(
+export const retryProvisioningV2 = onCall<{ storeId: string }>(
   { cors: ALLOWED_ORIGINS, invoker: 'public' },
   async (request) => {
     if (!request.auth?.token['platformAdmin']) {
       throw new HttpsError('permission-denied', 'Only platform admins can retry provisioning.');
     }
-    await checkRateLimit(request.auth?.uid, 'retryProvisioning', 5, 15);
+    await checkRateLimit(request.auth?.uid, 'retryProvisioningV2', 5, 15);
 
     const { storeId } = request.data;
     if (!storeId) {
