@@ -184,3 +184,95 @@ describe('notifyAdminNewStoreCreated', () => {
     ).resolves.toBeUndefined();
   });
 });
+
+import * as crypto from 'crypto';
+import {
+  generateGitHubAppJwt,
+  getGitHubAppToken,
+  getGitHubPat,
+  getDeployToken,
+  _resetGitHubTokenCacheForTesting,
+  secretsClient,
+} from './helpers';
+
+describe('GitHub App & PAT token resolver', () => {
+  beforeEach(() => {
+    _resetGitHubTokenCacheForTesting();
+    vi.restoreAllMocks();
+  });
+
+  it('generateGitHubAppJwt signs a valid 3-part RS256 JWT', () => {
+    const { privateKey } = crypto.generateKeyPairSync('rsa', { modulusLength: 2048 });
+    const pem = privateKey.export({ type: 'pkcs1', format: 'pem' }).toString();
+    const jwt = generateGitHubAppJwt('5157671', pem);
+    const parts = jwt.split('.');
+    expect(parts).toHaveLength(3);
+    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString());
+    expect(payload.iss).toBe('5157671');
+  });
+
+  it('getGitHubAppToken fetches and caches installation token', async () => {
+    const { privateKey } = crypto.generateKeyPairSync('rsa', { modulusLength: 2048 });
+    const pem = privateKey.export({ type: 'pkcs1', format: 'pem' }).toString();
+
+    vi.spyOn(secretsClient, 'accessSecretVersion').mockResolvedValueOnce([
+      { payload: { data: Buffer.from(pem) } },
+    ] as any);
+
+    const mockFetch = vi.fn().mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ token: 'mock-bot-token', expires_at: new Date(Date.now() + 3600000).toISOString() }),
+    });
+    vi.stubGlobal('fetch', mockFetch);
+
+    const token = await getGitHubAppToken('5157671', '167069206');
+    expect(token).toBe('mock-bot-token');
+    expect(mockFetch).toHaveBeenCalledOnce();
+
+    const cached = await getGitHubAppToken('5157671', '167069206');
+    expect(cached).toBe('mock-bot-token');
+    expect(mockFetch).toHaveBeenCalledOnce();
+    vi.unstubAllGlobals();
+  });
+
+  it('getGitHubAppToken returns null on fetch failure or missing secret', async () => {
+    vi.spyOn(secretsClient, 'accessSecretVersion').mockRejectedValueOnce(new Error('no key'));
+    const token = await getGitHubAppToken('5157671', '167069206');
+    expect(token).toBeNull();
+  });
+
+  it('getGitHubPat returns app bot token when available', async () => {
+    const { privateKey } = crypto.generateKeyPairSync('rsa', { modulusLength: 2048 });
+    const pem = privateKey.export({ type: 'pkcs1', format: 'pem' }).toString();
+
+    vi.spyOn(secretsClient, 'accessSecretVersion').mockResolvedValueOnce([
+      { payload: { data: Buffer.from(pem) } },
+    ] as any);
+
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ token: 'bot-token-active', expires_at: new Date(Date.now() + 3600000).toISOString() }),
+    }));
+
+    const result = await getGitHubPat();
+    expect(result).toBe('bot-token-active');
+    vi.unstubAllGlobals();
+  });
+
+  it('getGitHubPat falls back to github-pat secret when app token fails', async () => {
+    vi.spyOn(secretsClient, 'accessSecretVersion')
+      .mockRejectedValueOnce(new Error('no app key'))
+      .mockResolvedValueOnce([{ payload: { data: Buffer.from('legacy-pat-value') } }] as any);
+
+    const result = await getGitHubPat();
+    expect(result).toBe('legacy-pat-value');
+  });
+
+  it('getDeployToken fetches and caches deploy token', async () => {
+    vi.spyOn(secretsClient, 'accessSecretVersion').mockResolvedValueOnce([
+      { payload: { data: Buffer.from('test-deploy-token') } },
+    ] as any);
+    const token = await getDeployToken();
+    expect(token).toBe('test-deploy-token');
+  });
+});
