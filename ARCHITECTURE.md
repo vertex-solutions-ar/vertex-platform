@@ -4,8 +4,8 @@
 
 | Repo | URL | Purpose |
 |------|-----|---------|
-| **vertex-platform** | `github.com/Vertex-Tech-Devs/vertex-platform` | SaaS control plane — store orchestration, provisioning, billing, platform admin |
-| **ecommerce-vertex** | `github.com/Vertex-Tech-Devs/ecommerce-vertex` | White-label ecommerce template — deployed per tenant with custom branding |
+| **vertex-platform** | `github.com/vertex-solutions-ar/vertex-platform` | SaaS control plane — store orchestration, provisioning, billing, platform admin |
+| **ecommerce-vertex** | `github.com/vertex-solutions-ar/ecommerce-vertex` | White-label ecommerce template — deployed per tenant with custom branding |
 
 ---
 

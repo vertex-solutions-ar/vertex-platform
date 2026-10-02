@@ -1,10 +1,14 @@
 /**
- * One-time setup: stores Application Default Credentials and GitHub PAT
+ * One-time setup: stores Application Default Credentials and GitHub Service/Bot Token
  * in Google Cloud Secret Manager so the provisionStore Cloud Function can use them.
+ *
+ * Zero-Personal Actor Policy:
+ *   Use a dedicated Service Account / GitHub App installation token (e.g. vertex-deployer-bot[bot])
+ *   or fine-grained org PAT to avoid personal human developer attribution.
  *
  * Prerequisites:
  *   1. gcloud auth application-default login  (already done)
- *   2. A GitHub PAT with scopes: repo + workflow
+ *   2. A GitHub Token (Bot / Org Service Token) with scopes: repo + workflow
  *
  * Usage:
  *   npm run setup-provisioning

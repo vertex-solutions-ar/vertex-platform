@@ -3427,7 +3427,7 @@ async function executeProvisioningSteps(storeId: string): Promise<void> {
       const targetRef = env === 'production' ? 'main' : env === 'local' ? 'local' : 'develop';
 
       const res = await fetch(
-        'https://api.github.com/repos/Vertex-Tech-Devs/ecommerce-vertex/dispatches',
+        'https://api.github.com/repos/vertex-solutions-ar/ecommerce-vertex/dispatches',
         {
           method: 'POST',
           headers: {
@@ -3747,7 +3747,7 @@ export const completeStoreDeployment = onCall<{
     throw new HttpsError('not-found', 'Store not found.');
   }
   const storeData = snap.data()!;
-  const expectedRepo = 'Vertex-Tech-Devs/ecommerce-vertex';
+  const expectedRepo = 'vertex-solutions-ar/ecommerce-vertex';
 
   let authenticated = false;
   if (idToken) {

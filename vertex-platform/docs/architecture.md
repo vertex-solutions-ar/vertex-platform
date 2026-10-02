@@ -6,8 +6,8 @@
 
 | Repositorio                         | Rol                                                              | Stack                                                          |
 | ----------------------------------- | ---------------------------------------------------------------- | -------------------------------------------------------------- |
-| `vertex-tech-devs/vertex-platform`  | Plano de control (aprovisionamiento, billing, shards, contratos) | Angular 22 + Firebase Cloud Functions v2 + Firestore           |
-| `vertex-tech-devs/ecommerce-vertex` | Plantilla de tienda (storefront + admin del cliente)             | Angular 22 + Firebase Cloud Functions v2 + Firestore + Storage |
+| `vertex-solutions-ar/vertex-platform`  | Plano de control (aprovisionamiento, billing, shards, contratos) | Angular 22 + Firebase Cloud Functions v2 + Firestore           |
+| `vertex-solutions-ar/ecommerce-vertex` | Plantilla de tienda (storefront + admin del cliente)             | Angular 22 + Firebase Cloud Functions v2 + Firestore + Storage |
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐

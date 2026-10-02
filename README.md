@@ -54,7 +54,7 @@ El ecosistema cuenta con una suite de desarrollo contenedorizada completa que le
 Asegúrate de tener **Docker Desktop** instalado y en ejecución en tu equipo. Abre una terminal y corre el siguiente comando consolidado:
 
 ```bash
-mkdir -p "Vertex Projects" && cd "Vertex Projects" && git clone -b develop https://github.com/Vertex-Tech-Devs/vertex-platform.git platform && git clone -b develop https://github.com/Vertex-Tech-Devs/ecommerce-vertex.git storefront && cd platform && bash docker/start.sh
+mkdir -p "Vertex Projects" && cd "Vertex Projects" && git clone -b develop https://github.com/vertex-solutions-ar/vertex-platform.git platform && git clone -b develop https://github.com/vertex-solutions-ar/ecommerce-vertex.git storefront && cd platform && bash docker/start.sh
 ```
 
 _¿Qué hace este comando?_
