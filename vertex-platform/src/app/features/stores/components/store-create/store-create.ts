@@ -149,6 +149,18 @@ export class StoreCreate implements OnInit {
 
     this.form
       .get('subdomain')
+      ?.valueChanges.pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((val) => {
+        const clean = String(val || '').trim().toLowerCase();
+        if (!clean || clean.length < 3) {
+          this.subdomainAvailable.set(null);
+          this.subdomainMessage.set('');
+          this.subdomainError.set('');
+        }
+      });
+
+    this.form
+      .get('subdomain')
       ?.valueChanges.pipe(
         debounceTime(400),
         distinctUntilChanged(),
@@ -333,7 +345,16 @@ export class StoreCreate implements OnInit {
       const raw = error instanceof Error ? error.message : '';
       const lower = raw.toLowerCase();
       let message = raw || 'No se pudo crear la tienda. Intentá de nuevo.';
-      if (lower.includes('permission-denied') || lower.includes('unauthenticated')) {
+      const errorCode = (error as { code?: string })?.code || '';
+      if (
+        lower === 'internal' ||
+        lower.includes('functions/internal') ||
+        errorCode === 'functions/internal' ||
+        errorCode === 'internal'
+      ) {
+        message =
+          'No se pudo conectar con el servicio de aprovisionamiento (error de red o permisos). Por favor reintentá en unos segundos.';
+      } else if (lower.includes('permission-denied') || lower.includes('unauthenticated')) {
         message =
           'Tu sesión no tiene permisos de administrador de plataforma. Recargá la página y volvé a iniciar sesión.';
       } else if (
