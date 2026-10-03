@@ -173,11 +173,17 @@ describe('StoreCreate', () => {
 
     storesService.createStore.mockRejectedValueOnce(new Error('internal'));
     await component.onSubmit();
-    expect(component.errorMessage()).toContain('No se pudo conectar con el servicio de aprovisionamiento');
+    expect(component.errorMessage()).toContain(
+      'No se pudo conectar con el servicio de aprovisionamiento',
+    );
 
-    storesService.createStore.mockRejectedValueOnce(Object.assign(new Error('CORS fail'), { code: 'functions/internal' }));
+    storesService.createStore.mockRejectedValueOnce(
+      Object.assign(new Error('CORS fail'), { code: 'functions/internal' }),
+    );
     await component.onSubmit();
-    expect(component.errorMessage()).toContain('No se pudo conectar con el servicio de aprovisionamiento');
+    expect(component.errorMessage()).toContain(
+      'No se pudo conectar con el servicio de aprovisionamiento',
+    );
 
     storesService.createStore.mockRejectedValueOnce(new Error('quota exceeded for projects'));
     await component.onSubmit();

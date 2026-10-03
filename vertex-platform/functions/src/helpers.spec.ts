@@ -221,7 +221,10 @@ describe('GitHub App & PAT token resolver', () => {
 
     const mockFetch = vi.fn().mockResolvedValueOnce({
       ok: true,
-      json: async () => ({ token: 'mock-bot-token', expires_at: new Date(Date.now() + 3600000).toISOString() }),
+      json: async () => ({
+        token: 'mock-bot-token',
+        expires_at: new Date(Date.now() + 3600000).toISOString(),
+      }),
     });
     vi.stubGlobal('fetch', mockFetch);
 
@@ -249,10 +252,16 @@ describe('GitHub App & PAT token resolver', () => {
       { payload: { data: Buffer.from(pem) } },
     ] as any);
 
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({ token: 'bot-token-active', expires_at: new Date(Date.now() + 3600000).toISOString() }),
-    }));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          token: 'bot-token-active',
+          expires_at: new Date(Date.now() + 3600000).toISOString(),
+        }),
+      }),
+    );
 
     const result = await getGitHubPat();
     expect(result).toBe('bot-token-active');

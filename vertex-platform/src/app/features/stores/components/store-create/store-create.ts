@@ -151,7 +151,9 @@ export class StoreCreate implements OnInit {
       .get('subdomain')
       ?.valueChanges.pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((val) => {
-        const clean = String(val || '').trim().toLowerCase();
+        const clean = String(val || '')
+          .trim()
+          .toLowerCase();
         if (!clean || clean.length < 3) {
           this.subdomainAvailable.set(null);
           this.subdomainMessage.set('');
@@ -220,7 +222,9 @@ export class StoreCreate implements OnInit {
     this.subdomainError.set('');
     try {
       const res = await this.storesService.checkSubdomainAvailability(clean);
-      const currentVal = String(this.form.get("subdomain")?.value || "").trim().toLowerCase();
+      const currentVal = String(this.form.get('subdomain')?.value || '')
+        .trim()
+        .toLowerCase();
       if (currentVal !== clean) {
         return;
       }
