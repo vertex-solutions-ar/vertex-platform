@@ -171,6 +171,20 @@ describe('StoreCreate', () => {
     await component.onSubmit();
     expect(component.errorMessage()).toContain('permisos de administrador');
 
+    storesService.createStore.mockRejectedValueOnce(new Error('internal'));
+    await component.onSubmit();
+    expect(component.errorMessage()).toContain(
+      'No se pudo conectar con el servicio de aprovisionamiento',
+    );
+
+    storesService.createStore.mockRejectedValueOnce(
+      Object.assign(new Error('CORS fail'), { code: 'functions/internal' }),
+    );
+    await component.onSubmit();
+    expect(component.errorMessage()).toContain(
+      'No se pudo conectar con el servicio de aprovisionamiento',
+    );
+
     storesService.createStore.mockRejectedValueOnce(new Error('quota exceeded for projects'));
     await component.onSubmit();
     expect(component.errorMessage()).toContain('cuota de proyectos GCP');
@@ -178,6 +192,21 @@ describe('StoreCreate', () => {
     storesService.createStore.mockRejectedValueOnce(new Error('Store already exists'));
     await component.onSubmit();
     expect(component.errorMessage()).toContain('Ya existe una tienda con ese slug');
+  });
+
+  it('immediately resets subdomain validation messages on short input', () => {
+    const fixture = TestBed.createComponent(StoreCreate);
+    const component = fixture.componentInstance;
+    fixture.detectChanges();
+
+    component.subdomainAvailable.set(true);
+    component.subdomainMessage.set('disponible');
+    component.subdomainError.set('error');
+
+    component.form.get('subdomain')?.setValue('ab');
+    expect(component.subdomainAvailable()).toBeNull();
+    expect(component.subdomainMessage()).toBe('');
+    expect(component.subdomainError()).toBe('');
   });
 
   it('marks all touched on submit with invalid form', async () => {

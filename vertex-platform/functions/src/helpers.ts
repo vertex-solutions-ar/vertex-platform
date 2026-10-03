@@ -245,13 +245,16 @@ export async function getGitHubAppToken(
     if (!cachedPrivateKeyPem) return null;
 
     const jwt = generateGitHubAppJwt(appId, cachedPrivateKeyPem);
-    const res = await fetch(`https://api.github.com/app/installations/${installationId}/access_tokens`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${jwt}`,
-        Accept: 'application/vnd.github+json',
+    const res = await fetch(
+      `https://api.github.com/app/installations/${installationId}/access_tokens`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${jwt}`,
+          Accept: 'application/vnd.github+json',
+        },
       },
-    });
+    );
 
     if (!res.ok) {
       console.warn(`[getGitHubAppToken] Error fetching token (${res.status})`);
@@ -263,7 +266,10 @@ export async function getGitHubAppToken(
     cachedAppToken = { token: data.token, expiresAt };
     return data.token;
   } catch (err) {
-    console.warn('[getGitHubAppToken] Error generating GitHub App token, falling back to PAT:', err);
+    console.warn(
+      '[getGitHubAppToken] Error generating GitHub App token, falling back to PAT:',
+      err,
+    );
     return null;
   }
 }
