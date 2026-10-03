@@ -19,6 +19,12 @@
       "hosting": {
         "dev": [
           "vertex-platform-dev"
+        ],
+        "prod": [
+          "vertex-platform-dev"
+        ],
+        "prod-clean": [
+          "vertex-platform-dev"
         ]
       }
     }
