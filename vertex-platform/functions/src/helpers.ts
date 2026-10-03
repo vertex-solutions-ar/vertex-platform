@@ -315,13 +315,13 @@ export async function calculateDeploySequence(
     if (storeData && typeof storeData['deployCount'] === 'number') {
       count = storeData['deployCount'];
     } else {
-      // Intentar contar en la subcolección de historial
-      const deploysSnap = await storeRef.collection('deploys').get();
-      if (!deploysSnap.empty) {
-        count = deploysSnap.size;
-      } else {
-        const historySnap = await storeRef.collection('deploy_history').get();
+      // Priorizar subcolección deploy_history, con fallback a deploys
+      const historySnap = await storeRef.collection('deploy_history').get();
+      if (!historySnap.empty) {
         count = historySnap.size;
+      } else {
+        const deploysSnap = await storeRef.collection('deploys').get();
+        count = deploysSnap.size;
       }
     }
   } catch (err) {
@@ -345,6 +345,57 @@ export async function calculateDeploySequence(
     isRedeploy: true,
     deployTimestamp,
   };
+}
+
+export interface RecordDeployHistoryParams {
+  db: Firestore;
+  storeId: string;
+  success: boolean;
+  version: string;
+  commitSha?: string;
+  commitMessage?: string;
+  ref?: string;
+  error?: string | null;
+}
+
+export async function recordStoreDeployHistory(params: RecordDeployHistoryParams): Promise<void> {
+  const { db, storeId, success, version, commitSha, commitMessage, ref, error } = params;
+  try {
+    const storeRef = db.collection('stores').doc(storeId);
+    const deploySequence = await calculateDeploySequence(db, storeId);
+    const deployLabel =
+      deploySequence.isRedeploy && deploySequence.redeployNumber > 0
+        ? `Redespliegue ${deploySequence.redeployNumber}`
+        : `Despliegue ${deploySequence.deployNumber}`;
+
+    const entry = {
+      timestamp: new Date(),
+      success,
+      commitSha: commitSha || '',
+      commitMessage: commitMessage || '',
+      ref: ref || '',
+      version,
+      deployLabel,
+      deployNumber: deploySequence.deployNumber,
+      redeployNumber: deploySequence.redeployNumber,
+      isRedeploy: deploySequence.isRedeploy,
+      error: success ? null : error || 'Storefront deployment failed. Check GitHub Action logs.',
+    };
+
+    // Registrar en ambas subcolecciones (deploy_history y deploys) para compatibilidad
+    await Promise.allSettled([
+      storeRef.collection('deploy_history').add(entry),
+      storeRef.collection('deploys').add(entry),
+      storeRef.update({
+        deployCount: deploySequence.deployNumber,
+      }),
+    ]);
+  } catch (err) {
+    console.warn(
+      `[recordStoreDeployHistory] Non-fatal error recording deploy history for ${storeId}:`,
+      err,
+    );
+  }
 }
 
 export async function ensureShardSecurityPolicies(

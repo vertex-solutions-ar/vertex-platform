@@ -32,6 +32,7 @@ import {
   DEFAULT_SANDBOX_PUBLIC_KEY,
   DEFAULT_SANDBOX_ACCESS_TOKEN,
   calculateDeploySequence,
+  recordStoreDeployHistory,
 } from './helpers';
 import { ensureAuthorizedDomain } from './hosting-auth.utils';
 import { seedStoreData } from './seeds';
@@ -3423,6 +3424,7 @@ async function executeProvisioningSteps(storeId: string): Promise<void> {
       }
 
       const pat = await getGitHubPat();
+      const deployTokenValue = await getDeployToken();
       const deploySequence = await calculateDeploySequence(db, storeId);
 
       const env = resolvePlatformEnvironment(PLATFORM_PROJECT);
@@ -3443,6 +3445,7 @@ async function executeProvisioningSteps(storeId: string): Promise<void> {
             // NOTA: la API de repository_dispatch NO permite fijar el `ref` del dispatch;
             // siempre ejecuta el workflow del default branch (main). El client_payload.ref
             // se usa en el checkout del workflow para correr el código de la rama correcta.
+            // Máximo 10 propiedades permitidas por la API de GitHub en client_payload (aquí 10 exactas):
             client_payload: {
               store_id: storeId,
               tenant_id: tenantId,
@@ -3452,11 +3455,15 @@ async function executeProvisioningSteps(storeId: string): Promise<void> {
               store_name: name,
               platform_project_id: PLATFORM_PROJECT,
               environment: env,
+              deploy_token: deployTokenValue,
               ref: targetRef,
-              deploy_number: deploySequence.deployNumber,
-              redeploy_number: deploySequence.redeployNumber,
-              is_redeploy: deploySequence.isRedeploy,
-              deploy_timestamp: deploySequence.deployTimestamp,
+              meta: {
+                version: CURRENT_TEMPLATE_VERSION,
+                deploy_number: deploySequence.deployNumber,
+                redeploy_number: deploySequence.redeployNumber,
+                is_redeploy: deploySequence.isRedeploy,
+                deploy_timestamp: deploySequence.deployTimestamp,
+              },
             },
           }),
         },
@@ -3785,14 +3792,14 @@ export const completeStoreDeployment = onCall<{
         ? storeVersion.replace(/^v/, '')
         : CURRENT_TEMPLATE_VERSION;
 
-  const deployLogRef = storeRef.collection('deploys').doc();
-  await deployLogRef.set({
-    timestamp: new Date(),
+  await recordStoreDeployHistory({
+    db,
+    storeId,
     success,
+    version: effectiveVersion,
     commitSha: commitSha || '',
     commitMessage: commitMessage || '',
     ref: ref || '',
-    version: effectiveVersion,
     error: success ? null : 'Storefront deployment failed. Check GitHub Action logs for details.',
   });
 
