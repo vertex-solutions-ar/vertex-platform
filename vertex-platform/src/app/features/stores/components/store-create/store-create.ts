@@ -208,6 +208,10 @@ export class StoreCreate implements OnInit {
     this.subdomainError.set('');
     try {
       const res = await this.storesService.checkSubdomainAvailability(clean);
+      const currentVal = String(this.form.get("subdomain")?.value || "").trim().toLowerCase();
+      if (currentVal !== clean) {
+        return;
+      }
       this.subdomainAvailable.set(res.available);
       if (res.available) {
         this.subdomainMessage.set(`✓ https://${res.sanitized}.web.app disponible`);
