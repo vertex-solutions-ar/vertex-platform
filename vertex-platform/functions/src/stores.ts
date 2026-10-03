@@ -11,6 +11,7 @@ import {
   retry,
   listProvisioningOwnerCandidates,
   sendDirectEmail,
+  calculateDeploySequence,
 } from './helpers';
 import {
   resolvePlatformEnvironment,
@@ -761,6 +762,7 @@ export const redeployStore = onCall<{ storeId: string }>(
 
     const pat = await getGitHubPat();
     const deployTokenValue = await getDeployToken();
+    const deploySequence = await calculateDeploySequence(db, storeId);
     const env = resolvePlatformEnvironment(PLATFORM_PROJECT);
     const isStoreDev =
       store.environment === 'development' ||
@@ -812,6 +814,10 @@ export const redeployStore = onCall<{ storeId: string }>(
             environment: env,
             version: store.templateVersion || '0.4.0',
             ref: ref,
+            deploy_number: deploySequence.deployNumber,
+            redeploy_number: deploySequence.redeployNumber,
+            is_redeploy: deploySequence.isRedeploy,
+            deploy_timestamp: deploySequence.deployTimestamp,
           },
         }),
       },
@@ -867,6 +873,7 @@ async function dispatchStoreDeployment(storeId: string): Promise<void> {
 
   const pat = await getGitHubPat();
   const deployTokenValue = await getDeployToken();
+  const deploySequence = await calculateDeploySequence(db, storeId);
   const env = resolvePlatformEnvironment(PLATFORM_PROJECT);
   const isStoreDev =
     store.environment === 'development' ||
@@ -911,6 +918,10 @@ async function dispatchStoreDeployment(storeId: string): Promise<void> {
           deploy_token: deployTokenValue,
           environment: env,
           ref: ref,
+          deploy_number: deploySequence.deployNumber,
+          redeploy_number: deploySequence.redeployNumber,
+          is_redeploy: deploySequence.isRedeploy,
+          deploy_timestamp: deploySequence.deployTimestamp,
         },
       }),
     },

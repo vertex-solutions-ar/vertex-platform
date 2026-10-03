@@ -1,7 +1,13 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { logger } from 'firebase-functions';
 import { getFirestore } from 'firebase-admin/firestore';
-import { getGitHubPat, ALLOWED_ORIGINS, PLATFORM_PROJECT, getDeployToken } from './helpers';
+import {
+  getGitHubPat,
+  ALLOWED_ORIGINS,
+  PLATFORM_PROJECT,
+  getDeployToken,
+  calculateDeploySequence,
+} from './helpers';
 import { resolvePlatformEnvironment } from './runtime';
 import { verifyGitHubOidcToken } from './github-oidc';
 
@@ -224,6 +230,7 @@ export const updateStoreVersion = onCall<{ storeId: string; version: string }>(
     const firebaseConfig = configSnap.data() as Record<string, string>;
 
     const deployToken = await getDeployToken();
+    const deploySequence = await calculateDeploySequence(db, storeId);
 
     const res = await fetch(
       'https://api.github.com/repos/vertex-solutions-ar/ecommerce-vertex/dispatches',
@@ -248,6 +255,10 @@ export const updateStoreVersion = onCall<{ storeId: string; version: string }>(
             platform_project_id: PLATFORM_PROJECT,
             deploy_token: deployToken,
             environment: resolvePlatformEnvironment(PLATFORM_PROJECT),
+            deploy_number: deploySequence.deployNumber,
+            redeploy_number: deploySequence.redeployNumber,
+            is_redeploy: deploySequence.isRedeploy,
+            deploy_timestamp: deploySequence.deployTimestamp,
           },
         }),
       },

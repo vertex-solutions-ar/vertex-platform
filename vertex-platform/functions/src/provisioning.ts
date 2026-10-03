@@ -31,6 +31,7 @@ import {
   ensureShardSecurityPolicies,
   DEFAULT_SANDBOX_PUBLIC_KEY,
   DEFAULT_SANDBOX_ACCESS_TOKEN,
+  calculateDeploySequence,
 } from './helpers';
 import { ensureAuthorizedDomain } from './hosting-auth.utils';
 import { seedStoreData } from './seeds';
@@ -3422,6 +3423,7 @@ async function executeProvisioningSteps(storeId: string): Promise<void> {
       }
 
       const pat = await getGitHubPat();
+      const deploySequence = await calculateDeploySequence(db, storeId);
 
       const env = resolvePlatformEnvironment(PLATFORM_PROJECT);
       const targetRef = env === 'production' ? 'main' : env === 'local' ? 'local' : 'develop';
@@ -3451,6 +3453,10 @@ async function executeProvisioningSteps(storeId: string): Promise<void> {
               platform_project_id: PLATFORM_PROJECT,
               environment: env,
               ref: targetRef,
+              deploy_number: deploySequence.deployNumber,
+              redeploy_number: deploySequence.redeployNumber,
+              is_redeploy: deploySequence.isRedeploy,
+              deploy_timestamp: deploySequence.deployTimestamp,
             },
           }),
         },
