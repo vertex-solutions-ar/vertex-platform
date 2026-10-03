@@ -349,6 +349,30 @@ describe('calculateDeploySequence', () => {
     expect(res.isRedeploy).toBe(true);
   });
 
+  it('counts previous deploys from deploy_history subcollection when available', async () => {
+    const db = {
+      collection: vi.fn(() => ({
+        doc: vi.fn(() => ({
+          get: vi.fn().mockResolvedValue({
+            exists: true,
+            data: () => ({ id: 'store-history' }),
+          }),
+          collection: vi.fn((subCol: string) => ({
+            get: vi.fn().mockResolvedValue({
+              empty: subCol !== 'deploy_history',
+              size: subCol === 'deploy_history' ? 4 : 0,
+            }),
+          })),
+        })),
+      })),
+    } as unknown as Firestore;
+
+    const res = await calculateDeploySequence(db, 'store-history');
+    expect(res.deployNumber).toBe(5);
+    expect(res.redeployNumber).toBe(4);
+    expect(res.isRedeploy).toBe(true);
+  });
+
   it('safely falls back to deploy 1 on database read error', async () => {
     const db = {
       collection: vi.fn(() => ({
@@ -362,5 +386,61 @@ describe('calculateDeploySequence', () => {
     expect(res.deployNumber).toBe(1);
     expect(res.redeployNumber).toBe(0);
     expect(res.isRedeploy).toBe(false);
+  });
+});
+
+describe('recordStoreDeployHistory', () => {
+  it('records deploy in deploy_history, deploys, and updates deployCount', async () => {
+    const addHistoryMock = vi.fn().mockResolvedValue({ id: 'hist-1' });
+    const addDeploysMock = vi.fn().mockResolvedValue({ id: 'dep-1' });
+    const updateStoreMock = vi.fn().mockResolvedValue({});
+
+    const db = {
+      collection: vi.fn(() => ({
+        doc: vi.fn(() => ({
+          get: vi.fn().mockResolvedValue({
+            exists: true,
+            data: () => ({ id: 'store-rec', deployCount: 1 }),
+          }),
+          collection: vi.fn((subCol: string) => {
+            if (subCol === 'deploy_history') return { add: addHistoryMock };
+            if (subCol === 'deploys') return { add: addDeploysMock };
+            return { get: vi.fn().mockResolvedValue({ empty: true, size: 0 }) };
+          }),
+          update: updateStoreMock,
+        })),
+      })),
+    } as unknown as Firestore;
+
+    const { recordStoreDeployHistory } = await import('./helpers');
+    await recordStoreDeployHistory({
+      db,
+      storeId: 'store-rec',
+      success: true,
+      version: '0.9.0',
+      commitSha: 'abcdef1',
+      commitMessage: 'test commit',
+      ref: 'main',
+    });
+
+    expect(addHistoryMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        version: '0.9.0',
+        deployLabel: 'Redespliegue 1',
+        deployNumber: 2,
+        redeployNumber: 1,
+        isRedeploy: true,
+        success: true,
+      }),
+    );
+    expect(addDeploysMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        version: '0.9.0',
+        deployLabel: 'Redespliegue 1',
+      }),
+    );
+    expect(updateStoreMock).toHaveBeenCalledWith({
+      deployCount: 2,
+    });
   });
 });

@@ -791,47 +791,67 @@ export const redeployStore = onCall<{ storeId: string }>(
       updatedAt: new Date(),
     });
 
-    const res = await fetch(
-      'https://api.github.com/repos/vertex-solutions-ar/ecommerce-vertex/dispatches',
-      {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${pat}`,
-          Accept: 'application/vnd.github+json',
-          'X-GitHub-Api-Version': '2022-11-28',
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          event_type: 'provision-store',
-          client_payload: {
-            store_id: storeId,
-            tenant_id: tenantId,
-            project_id: projectId,
-            site_id: runtimeSiteId,
-            firebase_config: JSON.stringify(firebaseConfig),
-            platform_project_id: PLATFORM_PROJECT,
-            deploy_token: deployTokenValue,
-            environment: env,
-            version: store.templateVersion || '0.4.0',
-            ref: ref,
-            deploy_number: deploySequence.deployNumber,
-            redeploy_number: deploySequence.redeployNumber,
-            is_redeploy: deploySequence.isRedeploy,
-            deploy_timestamp: deploySequence.deployTimestamp,
+    const templateVersionStr = store.templateVersion || '0.4.0';
+    try {
+      const res = await fetch(
+        'https://api.github.com/repos/vertex-solutions-ar/ecommerce-vertex/dispatches',
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${pat}`,
+            Accept: 'application/vnd.github+json',
+            'X-GitHub-Api-Version': '2022-11-28',
+            'Content-Type': 'application/json',
           },
-        }),
-      },
-    );
+          body: JSON.stringify({
+            event_type: 'provision-store',
+            client_payload: {
+              store_id: storeId,
+              tenant_id: tenantId,
+              project_id: projectId,
+              site_id: runtimeSiteId,
+              firebase_config: JSON.stringify(firebaseConfig),
+              platform_project_id: PLATFORM_PROJECT,
+              deploy_token: deployTokenValue,
+              environment: env,
+              ref: ref,
+              meta: {
+                version: templateVersionStr,
+                deploy_number: deploySequence.deployNumber,
+                redeploy_number: deploySequence.redeployNumber,
+                is_redeploy: deploySequence.isRedeploy,
+                deploy_timestamp: deploySequence.deployTimestamp,
+              },
+            },
+          }),
+        },
+      );
 
-    if (!res.ok && res.status !== 204) {
-      const body = await res.text();
-      console.error('redeployStore GitHub dispatch error:', res.status, body);
+      if (!res.ok && res.status !== 204) {
+        const body = await res.text();
+        console.error('redeployStore GitHub dispatch error:', res.status, body);
+        await db
+          .collection('stores')
+          .doc(storeId)
+          .update({
+            redeployStatus: 'failed',
+            redeployError: `No se pudo iniciar el flujo de compilación en GitHub Actions (${res.status}).`,
+            updatedAt: new Date(),
+          });
+        throw new HttpsError('internal', `GitHub API error (${res.status}): ${body.slice(0, 200)}`);
+      }
+    } catch (dispatchErr) {
+      if (dispatchErr instanceof HttpsError) {
+        throw dispatchErr;
+      }
+      const msg = dispatchErr instanceof Error ? dispatchErr.message : String(dispatchErr);
+      console.error('redeployStore unexpected dispatch error:', dispatchErr);
       await db.collection('stores').doc(storeId).update({
         redeployStatus: 'failed',
-        redeployError: 'No se pudo iniciar el flujo de compilación en GitHub Actions.',
+        redeployError: 'Error de red o conexión con GitHub Actions.',
         updatedAt: new Date(),
       });
-      throw new HttpsError('internal', 'Failed to trigger deployment. Please try again.');
+      throw new HttpsError('internal', `Error conectando con el servicio de despliegue: ${msg}`);
     }
 
     return { success: true };
@@ -895,6 +915,7 @@ async function dispatchStoreDeployment(storeId: string): Promise<void> {
         ? `refs/tags/v${store.templateVersion.replace(/^v/, '')}`
         : targetRef;
 
+  const templateVersionStr = store.templateVersion || '0.4.0';
   const res = await fetch(
     'https://api.github.com/repos/vertex-solutions-ar/ecommerce-vertex/dispatches',
     {
@@ -913,15 +934,18 @@ async function dispatchStoreDeployment(storeId: string): Promise<void> {
           project_id: projectId,
           site_id: runtimeSiteId,
           firebase_config: JSON.stringify(firebaseConfig),
-          store_name: store.name,
           platform_project_id: PLATFORM_PROJECT,
           deploy_token: deployTokenValue,
           environment: env,
           ref: ref,
-          deploy_number: deploySequence.deployNumber,
-          redeploy_number: deploySequence.redeployNumber,
-          is_redeploy: deploySequence.isRedeploy,
-          deploy_timestamp: deploySequence.deployTimestamp,
+          meta: {
+            store_name: store.name,
+            version: templateVersionStr,
+            deploy_number: deploySequence.deployNumber,
+            redeploy_number: deploySequence.redeployNumber,
+            is_redeploy: deploySequence.isRedeploy,
+            deploy_timestamp: deploySequence.deployTimestamp,
+          },
         },
       }),
     },
