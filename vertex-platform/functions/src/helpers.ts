@@ -295,6 +295,58 @@ export async function getDeployToken(): Promise<string> {
   return cachedDeployToken;
 }
 
+export interface DeploySequenceMetadata {
+  deployNumber: number;
+  redeployNumber: number;
+  isRedeploy: boolean;
+  deployTimestamp: string;
+}
+
+export async function calculateDeploySequence(
+  db: Firestore,
+  storeId: string,
+): Promise<DeploySequenceMetadata> {
+  let count = 0;
+  try {
+    const storeRef = db.collection('stores').doc(storeId);
+    const storeSnap = await storeRef.get();
+    const storeData = storeSnap.exists ? storeSnap.data() : null;
+
+    if (storeData && typeof storeData['deployCount'] === 'number') {
+      count = storeData['deployCount'];
+    } else {
+      // Intentar contar en la subcolección de historial
+      const deploysSnap = await storeRef.collection('deploys').get();
+      if (!deploysSnap.empty) {
+        count = deploysSnap.size;
+      } else {
+        const historySnap = await storeRef.collection('deploy_history').get();
+        count = historySnap.size;
+      }
+    }
+  } catch (err) {
+    console.warn(`[calculateDeploySequence] Error reading deploy history for ${storeId}:`, err);
+    count = 0;
+  }
+
+  const deployTimestamp = new Date().toISOString();
+  if (count <= 0) {
+    return {
+      deployNumber: 1,
+      redeployNumber: 0,
+      isRedeploy: false,
+      deployTimestamp,
+    };
+  }
+
+  return {
+    deployNumber: count + 1,
+    redeployNumber: count,
+    isRedeploy: true,
+    deployTimestamp,
+  };
+}
+
 export async function ensureShardSecurityPolicies(
   targetProjectId: string,
   providedAuth?: OAuth2Client,

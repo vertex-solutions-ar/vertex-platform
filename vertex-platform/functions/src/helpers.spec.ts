@@ -191,6 +191,7 @@ import {
   getGitHubAppToken,
   getGitHubPat,
   getDeployToken,
+  calculateDeploySequence,
   _resetGitHubTokenCacheForTesting,
   secretsClient,
 } from './helpers';
@@ -283,5 +284,83 @@ describe('GitHub App & PAT token resolver', () => {
     ] as any);
     const token = await getDeployToken();
     expect(token).toBe('test-deploy-token');
+  });
+});
+
+describe('calculateDeploySequence', () => {
+  it('returns deploy 1 and redeploy 0 when store has no deploy history', async () => {
+    const db = {
+      collection: vi.fn(() => ({
+        doc: vi.fn(() => ({
+          get: vi.fn().mockResolvedValue({
+            exists: true,
+            data: () => ({ id: 'store-1' }),
+          }),
+          collection: vi.fn(() => ({
+            get: vi.fn().mockResolvedValue({ empty: true, size: 0 }),
+          })),
+        })),
+      })),
+    } as unknown as Firestore;
+
+    const res = await calculateDeploySequence(db, 'store-1');
+    expect(res.deployNumber).toBe(1);
+    expect(res.redeployNumber).toBe(0);
+    expect(res.isRedeploy).toBe(false);
+    expect(typeof res.deployTimestamp).toBe('string');
+  });
+
+  it('uses deployCount field when available on store document', async () => {
+    const db = {
+      collection: vi.fn(() => ({
+        doc: vi.fn(() => ({
+          get: vi.fn().mockResolvedValue({
+            exists: true,
+            data: () => ({ id: 'store-2', deployCount: 3 }),
+          }),
+        })),
+      })),
+    } as unknown as Firestore;
+
+    const res = await calculateDeploySequence(db, 'store-2');
+    expect(res.deployNumber).toBe(4);
+    expect(res.redeployNumber).toBe(3);
+    expect(res.isRedeploy).toBe(true);
+  });
+
+  it('counts previous deploys from deploys subcollection when deployCount is absent', async () => {
+    const db = {
+      collection: vi.fn(() => ({
+        doc: vi.fn(() => ({
+          get: vi.fn().mockResolvedValue({
+            exists: true,
+            data: () => ({ id: 'store-3' }),
+          }),
+          collection: vi.fn(() => ({
+            get: vi.fn().mockResolvedValue({ empty: false, size: 2 }),
+          })),
+        })),
+      })),
+    } as unknown as Firestore;
+
+    const res = await calculateDeploySequence(db, 'store-3');
+    expect(res.deployNumber).toBe(3);
+    expect(res.redeployNumber).toBe(2);
+    expect(res.isRedeploy).toBe(true);
+  });
+
+  it('safely falls back to deploy 1 on database read error', async () => {
+    const db = {
+      collection: vi.fn(() => ({
+        doc: vi.fn(() => ({
+          get: vi.fn().mockRejectedValue(new Error('Firestore error')),
+        })),
+      })),
+    } as unknown as Firestore;
+
+    const res = await calculateDeploySequence(db, 'store-err');
+    expect(res.deployNumber).toBe(1);
+    expect(res.redeployNumber).toBe(0);
+    expect(res.isRedeploy).toBe(false);
   });
 });
