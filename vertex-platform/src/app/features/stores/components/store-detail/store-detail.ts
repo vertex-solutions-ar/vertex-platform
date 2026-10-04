@@ -272,7 +272,7 @@ export class StoreDetail implements OnInit {
       this.store()?.templateVersion ||
       latest?.version ||
       this.availableVersions()[0]?.version ||
-      '0.8.5';
+      '0.9.4';
     this.selectedVersion.set(defaultVer);
   }
 

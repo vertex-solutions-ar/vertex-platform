@@ -1,6 +1,6 @@
 {
   "name": "vertex-platform",
-  "version": "0.8.5",
+  "version": "0.9.4",
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
