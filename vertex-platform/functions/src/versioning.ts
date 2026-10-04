@@ -7,6 +7,7 @@ import {
   PLATFORM_PROJECT,
   getDeployToken,
   calculateDeploySequence,
+  recordStoreDeployHistory,
 } from './helpers';
 import { resolvePlatformEnvironment } from './runtime';
 import { verifyGitHubOidcToken } from './github-oidc';
@@ -232,40 +233,65 @@ export const updateStoreVersion = onCall<{ storeId: string; version: string }>(
     const deployToken = await getDeployToken();
     const deploySequence = await calculateDeploySequence(db, storeId);
 
-    const res = await fetch(
-      'https://api.github.com/repos/vertex-solutions-ar/ecommerce-vertex/dispatches',
-      {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${pat}`,
-          Accept: 'application/vnd.github+json',
-          'X-GitHub-Api-Version': '2022-11-28',
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          event_type: 'update-store-version',
-          client_payload: {
-            store_id: storeId,
-            tenant_id: storeData['slug'],
-            site_id: storeData['runtimeSiteId'] || 'default',
-            project_id: storeData['firebaseProjectId'],
-            firebase_config: JSON.stringify(firebaseConfig),
-            ref: `refs/tags/v${version}`,
-            version,
-            platform_project_id: PLATFORM_PROJECT,
-            deploy_token: deployToken,
-            environment: resolvePlatformEnvironment(PLATFORM_PROJECT),
-            deploy_number: deploySequence.deployNumber,
-            redeploy_number: deploySequence.redeployNumber,
-            is_redeploy: deploySequence.isRedeploy,
-            deploy_timestamp: deploySequence.deployTimestamp,
+    try {
+      const res = await fetch(
+        'https://api.github.com/repos/vertex-solutions-ar/ecommerce-vertex/dispatches',
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${pat}`,
+            Accept: 'application/vnd.github+json',
+            'X-GitHub-Api-Version': '2022-11-28',
+            'Content-Type': 'application/json',
           },
-        }),
-      },
-    );
+          body: JSON.stringify({
+            event_type: 'update-store-version',
+            client_payload: {
+              store_id: storeId,
+              tenant_id: storeData['slug'],
+              site_id: storeData['runtimeSiteId'] || 'default',
+              project_id: storeData['firebaseProjectId'],
+              firebase_config: JSON.stringify(firebaseConfig),
+              platform_project_id: PLATFORM_PROJECT,
+              deploy_token: deployToken,
+              environment: resolvePlatformEnvironment(PLATFORM_PROJECT),
+              ref: `refs/tags/v${version}`,
+              meta: {
+                version,
+                deploy_number: deploySequence.deployNumber,
+                redeploy_number: deploySequence.redeployNumber,
+                is_redeploy: deploySequence.isRedeploy,
+                deploy_timestamp: deploySequence.deployTimestamp,
+              },
+            },
+          }),
+        },
+      );
 
-    if (!res.ok && res.status !== 204) {
-      throw new HttpsError('internal', `Failed to trigger GitHub Actions: ${res.status}`);
+      if (!res.ok && res.status !== 204) {
+        const body = await res.text();
+        logger.error('[updateStoreVersion] GitHub dispatch error:', res.status, body);
+        await storeRef.update({
+          versionUpdateStatus: 'failed',
+          redeployStatus: 'failed',
+          redeployError: `No se pudo iniciar el flujo de actualización en GitHub Actions (${res.status}).`,
+          updatedAt: new Date(),
+        });
+        throw new HttpsError('internal', `GitHub API error (${res.status}): ${body.slice(0, 200)}`);
+      }
+    } catch (dispatchErr) {
+      if (dispatchErr instanceof HttpsError) {
+        throw dispatchErr;
+      }
+      const msg = dispatchErr instanceof Error ? dispatchErr.message : String(dispatchErr);
+      logger.error('[updateStoreVersion] unexpected dispatch error:', dispatchErr);
+      await storeRef.update({
+        versionUpdateStatus: 'failed',
+        redeployStatus: 'failed',
+        redeployError: 'Error de red o conexión con GitHub Actions.',
+        updatedAt: new Date(),
+      });
+      throw new HttpsError('internal', `Error conectando con el servicio de despliegue: ${msg}`);
     }
 
     await storeRef.update({
@@ -363,21 +389,17 @@ export const completeVersionUpdate = onCall<{
   const cleanVer = (version || '0.5.0').replace(/^v/, '');
   const schemaVer = getSchemaVersion(cleanVer);
 
-  // Record deployment entry into store's deploys subcollection
-  try {
-    const deployLogRef = storeRef.collection('deploys').doc();
-    await deployLogRef.set({
-      timestamp: new Date(),
-      success,
-      commitSha: commitSha || '',
-      commitMessage: commitMessage || '',
-      ref: ref || '',
-      version: cleanVer,
-      error: success ? null : 'Storefront deployment failed. Check GitHub Action logs for details.',
-    });
-  } catch (logErr) {
-    logger.warn('[completeVersionUpdate] Error recording deploy log:', logErr);
-  }
+  // Record deployment entry into store's deploy_history and deploys subcollections
+  await recordStoreDeployHistory({
+    db,
+    storeId,
+    success,
+    version: cleanVer,
+    commitSha: commitSha || '',
+    commitMessage: commitMessage || '',
+    ref: ref || '',
+    error: success ? null : 'Storefront deployment failed. Check GitHub Action logs for details.',
+  });
 
   if (success) {
     await storeRef.update({
