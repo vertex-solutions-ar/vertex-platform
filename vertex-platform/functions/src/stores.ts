@@ -816,6 +816,7 @@ export const redeployStore = onCall<{ storeId: string }>(
               environment: env,
               ref: ref,
               meta: {
+                store_name: store.name,
                 version: templateVersionStr,
                 deploy_number: deploySequence.deployNumber,
                 redeploy_number: deploySequence.redeployNumber,
