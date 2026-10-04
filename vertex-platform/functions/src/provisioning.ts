@@ -3445,19 +3445,19 @@ async function executeProvisioningSteps(storeId: string): Promise<void> {
             // NOTA: la API de repository_dispatch NO permite fijar el `ref` del dispatch;
             // siempre ejecuta el workflow del default branch (main). El client_payload.ref
             // se usa en el checkout del workflow para correr el código de la rama correcta.
-            // Máximo 10 propiedades permitidas por la API de GitHub en client_payload (aquí 10 exactas):
+            // Máximo 10 propiedades permitidas por la API de GitHub en client_payload (aquí 9 exactas):
             client_payload: {
               store_id: storeId,
               tenant_id: tenantId,
               project_id: projectId,
               site_id: runtimeSiteId || 'default',
               firebase_config: JSON.stringify(firebaseConfig),
-              store_name: name,
               platform_project_id: PLATFORM_PROJECT,
               environment: env,
               deploy_token: deployTokenValue,
               ref: targetRef,
               meta: {
+                store_name: name,
                 version: CURRENT_TEMPLATE_VERSION,
                 deploy_number: deploySequence.deployNumber,
                 redeploy_number: deploySequence.redeployNumber,
