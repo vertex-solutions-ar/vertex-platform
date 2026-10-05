@@ -94,7 +94,7 @@
     "firebase-admin": "^14.5.0",
     "husky": "^9.1.7",
     "jsdom": "^28.1.0",
-    "lint-staged": "^17.5.1",
+    "lint-staged": "^17.6.0",
     "prettier": "^3.9.9",
     "start-server-and-test": "^3.0.12",
     "tsx": "^4.23.15",
