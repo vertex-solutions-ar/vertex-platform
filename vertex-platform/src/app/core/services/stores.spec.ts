@@ -387,6 +387,9 @@ describe('StoresService', () => {
     await service.redeployStore('store-abc');
     expect(mockHttpsCallable).toHaveBeenCalledWith(expect.anything(), 'redeployStore');
     expect(mockFn).toHaveBeenCalledWith({ storeId: 'store-abc' });
+
+    await service.redeployStore('store-abc', 'develop');
+    expect(mockFn).toHaveBeenCalledWith({ storeId: 'store-abc', ref: 'develop' });
   });
 
   it('deleteStore calls deleteStore cloud function', async () => {

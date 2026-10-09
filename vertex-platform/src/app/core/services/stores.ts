@@ -205,9 +205,12 @@ export class StoresService {
     return result.data;
   }
 
-  async redeployStore(storeId: string): Promise<void> {
-    const fn = httpsCallable<{ storeId: string }, { success: boolean }>(this.fns, 'redeployStore');
-    await fn({ storeId });
+  async redeployStore(storeId: string, ref?: string): Promise<void> {
+    const fn = httpsCallable<{ storeId: string; ref?: string }, { success: boolean }>(
+      this.fns,
+      'redeployStore',
+    );
+    await fn({ storeId, ...(ref ? { ref } : {}) });
   }
 
   getStoreDeploymentHistory(storeId: string): Observable<Record<string, unknown>[]> {

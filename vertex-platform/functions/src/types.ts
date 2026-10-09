@@ -225,3 +225,8 @@ export interface InviteStaffPayload {
   email: string;
   role: 'admin' | 'staff' | 'warehouse' | 'fulfillment' | 'analyst';
 }
+
+export interface RedeployStorePayload {
+  storeId: string;
+  ref?: string;
+}

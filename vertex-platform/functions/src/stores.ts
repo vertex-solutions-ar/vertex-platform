@@ -21,6 +21,7 @@ import {
 import { verifyGitHubOidcToken } from './github-oidc';
 import type {
   InviteStaffPayload,
+  RedeployStorePayload,
   StoreRuntimeMode,
   StoreShard,
   UpdateStoreConfigPayload,
@@ -713,7 +714,7 @@ export const sendAdvancedTestEmail = onCall(
   },
 );
 
-export const redeployStore = onCall<{ storeId: string }>(
+export const redeployStore = onCall<RedeployStorePayload>(
   { cors: ALLOWED_ORIGINS, invoker: 'public' },
   async (request) => {
     if (!request.auth?.token['platformAdmin']) {
@@ -721,7 +722,7 @@ export const redeployStore = onCall<{ storeId: string }>(
     }
     await checkRateLimit(request.auth?.uid, 'redeployStore', 10, 15);
 
-    const { storeId } = request.data;
+    const { storeId, ref: requestedRef } = request.data;
     if (!storeId) {
       throw new HttpsError('invalid-argument', 'storeId is required.');
     }
@@ -768,21 +769,30 @@ export const redeployStore = onCall<{ storeId: string }>(
       store.environment === 'development' ||
       String(store.firebaseProjectId || store.runtimeProjectId || '').includes('-dev');
     const targetRef = env === 'production' ? 'main' : env === 'local' ? 'local' : 'develop';
-    // Lógica de actualización segura:
-    // - En develop (sandbox): solo si autoUpdate=true Y la tienda es de desarrollo califica a 'develop'. Si es de producción, NUNCA compila develop.
-    // - En main (producción): si autoUpdate=true compila 'main'. Si autoUpdate=false compila estrictamente su templateVersion fijada.
-    const ref =
-      store.autoUpdate === true
-        ? env === 'development'
-          ? isStoreDev
-            ? 'develop'
-            : store.templateVersion
-              ? `refs/tags/v${store.templateVersion.replace(/^v/, '')}`
-              : 'main'
-          : targetRef
-        : store.templateVersion
-          ? `refs/tags/v${store.templateVersion.replace(/^v/, '')}`
-          : targetRef;
+
+    // Si se especifica una rama o ref explícito (ej: 'develop', 'refs/heads/feature-x'),
+    // se respeta directamente para permitir probar cambios sin crear tags.
+    let ref: string;
+    if (requestedRef && typeof requestedRef === 'string' && requestedRef.trim()) {
+      const trimmedRef = requestedRef.trim();
+      ref = trimmedRef.startsWith('refs/') ? trimmedRef : `refs/heads/${trimmedRef}`;
+    } else {
+      // Lógica de actualización segura estándar:
+      // - En develop (sandbox): solo si autoUpdate=true Y la tienda es de desarrollo califica a 'develop'. Si es de producción, NUNCA compila develop.
+      // - En main (producción): si autoUpdate=true compila 'main'. Si autoUpdate=false compila estrictamente su templateVersion fijada.
+      ref =
+        store.autoUpdate === true
+          ? env === 'development'
+            ? isStoreDev
+              ? 'develop'
+              : store.templateVersion
+                ? `refs/tags/v${store.templateVersion.replace(/^v/, '')}`
+                : 'main'
+            : targetRef
+          : store.templateVersion
+            ? `refs/tags/v${store.templateVersion.replace(/^v/, '')}`
+            : targetRef;
+    }
 
     await db.collection('stores').doc(storeId).update({
       redeployStatus: 'deploying',
@@ -863,7 +873,7 @@ export const redeployStore = onCall<{ storeId: string }>(
  * Dispara el deploy de una tienda vía GitHub Actions (provision-store con la versión activa).
  * Compartido por redeployStore y activateStore.
  */
-async function dispatchStoreDeployment(storeId: string): Promise<void> {
+async function dispatchStoreDeployment(storeId: string, customRef?: string): Promise<void> {
   const db = getFirestore();
   const snap = await db.collection('stores').doc(storeId).get();
   if (!snap.exists) throw new Error('Store not found.');
@@ -900,21 +910,27 @@ async function dispatchStoreDeployment(storeId: string): Promise<void> {
     store.environment === 'development' ||
     String(store.firebaseProjectId || store.runtimeProjectId || '').includes('-dev');
   const targetRef = env === 'production' ? 'main' : env === 'local' ? 'local' : 'develop';
-  // Lógica de actualización segura:
-  // - En develop (sandbox): solo si autoUpdate=true Y la tienda es de desarrollo califica a 'develop'. Si es de producción, NUNCA compila develop.
-  // - En main (producción): si autoUpdate=true compila 'main'. Si autoUpdate=false compila estrictamente su templateVersion fijada.
-  const ref =
-    store.autoUpdate === true
-      ? env === 'development'
-        ? isStoreDev
-          ? 'develop'
-          : store.templateVersion
-            ? `refs/tags/v${store.templateVersion.replace(/^v/, '')}`
-            : 'main'
-        : targetRef
-      : store.templateVersion
-        ? `refs/tags/v${store.templateVersion.replace(/^v/, '')}`
-        : targetRef;
+  let ref: string;
+  if (customRef && typeof customRef === 'string' && customRef.trim()) {
+    const trimmed = customRef.trim();
+    ref = trimmed.startsWith('refs/') ? trimmed : `refs/heads/${trimmed}`;
+  } else {
+    // Lógica de actualización segura:
+    // - En develop (sandbox): solo si autoUpdate=true Y la tienda es de desarrollo califica a 'develop'. Si es de producción, NUNCA compila develop.
+    // - En main (producción): si autoUpdate=true compila 'main'. Si autoUpdate=false compila estrictamente su templateVersion fijada.
+    ref =
+      store.autoUpdate === true
+        ? env === 'development'
+          ? isStoreDev
+            ? 'develop'
+            : store.templateVersion
+              ? `refs/tags/v${store.templateVersion.replace(/^v/, '')}`
+              : 'main'
+          : targetRef
+        : store.templateVersion
+          ? `refs/tags/v${store.templateVersion.replace(/^v/, '')}`
+          : targetRef;
+  }
 
   const templateVersionStr = store.templateVersion || '0.4.0';
   const res = await fetch(
