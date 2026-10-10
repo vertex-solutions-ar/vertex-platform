@@ -9,6 +9,7 @@ describe('StoreDetailOrchestrationService - Store Isolation & Versions', () => {
   let service: StoreDetailOrchestrationService;
   let storesServiceMock: {
     listTemplateVersions: ReturnType<typeof vi.fn>;
+    listTemplateRefs: ReturnType<typeof vi.fn>;
     redeployStore: ReturnType<typeof vi.fn>;
     updateStoreVersion: ReturnType<typeof vi.fn>;
     resetStoreDeployStatus: ReturnType<typeof vi.fn>;
@@ -18,6 +19,15 @@ describe('StoreDetailOrchestrationService - Store Isolation & Versions', () => {
     activateStore: ReturnType<typeof vi.fn>;
     deleteStore: ReturnType<typeof vi.fn>;
     updateStore: ReturnType<typeof vi.fn>;
+  };
+
+  const mockRefs = {
+    defaultBranch: 'main',
+    branches: [
+      { name: 'main', sha: '1111111aaaa', shortSha: '1111111', isDefault: true },
+      { name: 'develop', sha: '2222222bbbb', shortSha: '2222222', isDefault: false },
+    ],
+    releases: [],
   };
 
   const mockVersions: TemplateVersion[] = [
@@ -40,6 +50,7 @@ describe('StoreDetailOrchestrationService - Store Isolation & Versions', () => {
   beforeEach(() => {
     storesServiceMock = {
       listTemplateVersions: vi.fn().mockResolvedValue(mockVersions),
+      listTemplateRefs: vi.fn().mockResolvedValue(mockRefs),
       redeployStore: vi.fn().mockResolvedValue(undefined),
       updateStoreVersion: vi.fn().mockResolvedValue(undefined),
       resetStoreDeployStatus: vi.fn().mockResolvedValue(undefined),
@@ -179,6 +190,67 @@ describe('StoreDetailOrchestrationService - Store Isolation & Versions', () => {
       await service.loadVersions(true);
       expect(service.versions()).toEqual([]);
       expect(service.isLoadingVersions()).toBe(false);
+    });
+  });
+
+  describe('Fuente de despliegue: ramas y borrador del selector', () => {
+    it('loadTemplateRefs carga ramas y rama por defecto', async () => {
+      await service.loadTemplateRefs();
+      expect(storesServiceMock.listTemplateRefs).toHaveBeenCalledWith(false);
+      expect(service.branches()).toHaveLength(2);
+      expect(service.defaultBranch()).toBe('main');
+      expect(service.isLoadingBranches()).toBe(false);
+      expect(service.branchesError()).toBe('');
+    });
+
+    it('loadTemplateRefs no repite la llamada si ya hay ramas (salvo force)', async () => {
+      await service.loadTemplateRefs();
+      await service.loadTemplateRefs();
+      expect(storesServiceMock.listTemplateRefs).toHaveBeenCalledTimes(1);
+
+      await service.loadTemplateRefs(true);
+      expect(storesServiceMock.listTemplateRefs).toHaveBeenCalledTimes(2);
+      expect(storesServiceMock.listTemplateRefs).toHaveBeenLastCalledWith(true);
+    });
+
+    it('loadTemplateRefs expone un error legible y no rompe el panel', async () => {
+      storesServiceMock.listTemplateRefs.mockRejectedValueOnce(new Error('GitHub 502'));
+      await service.loadTemplateRefs();
+      expect(service.branches()).toEqual([]);
+      expect(service.branchesError()).toContain('GitHub 502');
+      expect(service.isLoadingBranches()).toBe(false);
+    });
+
+    it('el borrador por tienda se conserva y no contagia a otras tiendas', () => {
+      service.setDeploySourceDraft('store-A', { kind: 'branch', branch: 'feat/x' });
+      service.setDeploySourceDraft('store-B', { kind: 'commit', commit: 'abc1234' });
+
+      expect(service.getDeploySourceDraft('store-A')).toMatchObject({
+        kind: 'branch',
+        branch: 'feat/x',
+      });
+      expect(service.getDeploySourceDraft('store-B')).toMatchObject({
+        kind: 'commit',
+        commit: 'abc1234',
+      });
+    });
+
+    it('el borrador se fusiona con los defaults al escribir parcialmente', () => {
+      service.setDeploySourceDraft('store-A', { kind: 'branch' }, { branch: 'develop' });
+      service.setDeploySourceDraft('store-A', { branch: 'feat/y' });
+      expect(service.getDeploySourceDraft('store-A')).toMatchObject({
+        kind: 'branch',
+        branch: 'feat/y',
+      });
+    });
+
+    it('getDeploySourceDraft prefiere develop, luego la rama por defecto', () => {
+      expect(service.getDeploySourceDraft('sin-borrador').branch).toBe('main');
+    });
+
+    it('setDeploySourceDraft ignora storeId vacío', () => {
+      service.setDeploySourceDraft('', { kind: 'branch' });
+      expect(service.deploySourceDrafts().size).toBe(0);
     });
   });
 });

@@ -3,6 +3,7 @@ import { RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { StoresService } from '@core/services/stores';
 import type { Store, StoreStatus } from '@core/models/store';
+import { deploySourceLabel, isTestDeploySource } from '@core/utils/deploy-source.util';
 
 const STATUS_LABELS: Record<StoreStatus, string> = {
   provisioning: 'Provisionando',
@@ -162,6 +163,14 @@ const STATUS_LABELS: Record<StoreStatus, string> = {
                 <div class="store-card__title-wrap">
                   <h3 class="store-card__name">{{ store.name }}</h3>
                   <span class="store-card__slug">/{{ store.slug }}</span>
+                  @if (isTestBuild(store)) {
+                    <span
+                      class="badge badge--warning"
+                      [title]="'Corriendo código de prueba: ' + testSourceLabel(store)"
+                    >
+                      <i class="bi bi-git"></i> TEST
+                    </span>
+                  }
                 </div>
                 <span class="badge {{ storeStatusBadge(store.status) }}">{{
                   statusLabel(store.status)
@@ -296,6 +305,16 @@ export class StoresList {
 
   statusLabel(s: Store['status']): string {
     return STATUS_LABELS[s];
+  }
+
+  /** ¿La tienda está corriendo un build de prueba (rama/commit) en vez de una release? */
+  isTestBuild(store: Store): boolean {
+    return isTestDeploySource(store.deploySource) || store.targetChannel === 'test';
+  }
+
+  /** Origen legible del build de prueba, para el tooltip del distintivo TEST. */
+  testSourceLabel(store: Store): string {
+    return deploySourceLabel(store.deploySource, store.templateVersion);
   }
 
   /** Mapea el estado a una clase de tono existente (badge--success/danger/warning/neutral). */

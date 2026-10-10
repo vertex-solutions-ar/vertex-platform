@@ -23,7 +23,7 @@ import { AuthService } from '@core/services/auth';
 import { StoreDetailStaffService } from './services/store-detail-staff.service';
 import { StoreDetailDomainsService } from './services/store-detail-domains.service';
 import { StoreDetailOrchestrationService } from './services/store-detail-orchestration.service';
-import type { PendingInvitation, Store } from '@core/models/store';
+import type { DeploySourceKind, PendingInvitation, Store } from '@core/models/store';
 import {
   formatDateUtil,
   statusLabelUtil,
@@ -34,7 +34,10 @@ import {
   type ActionProgressState,
   IDLE_STATE,
   isVersionOutdated,
+  deployHistorySourceKind,
+  deployHistorySourceLabel,
 } from './services/store-detail.util';
+import { StoreDetailDeployService } from './services/store-detail-deploy.service';
 import { StoreDetailDomains } from '../store-detail-domains/store-detail-domains';
 import { StoreDetailPayments } from '../store-detail-payments/store-detail-payments';
 import { StoreDetailPaymentsService } from '../../services/store-detail-payments.service';
@@ -178,10 +181,33 @@ export class StoreDetail implements OnInit {
   readonly isLoadingVersions = this.orchestrationService.isLoadingVersions;
   readonly latestVersion = this.orchestrationService.latestVersion;
   readonly isUpdatingAutoUpdate = signal(false);
-  readonly selectedVersion = signal('0.5.0');
-  readonly deployTargetType = signal<'version' | 'branch'>('version');
-  readonly customBranchRef = signal('develop');
   readonly statusLabel = statusLabelUtil;
+
+  // ── Fuente de despliegue (release vs prueba) ────────────────────────────────
+  // El estado y las acciones viven en `StoreDetailDeployService`; acá sólo se expone para
+  // el template. La tienda en foco se le empuja con `syncStore` (ver constructor).
+  readonly deploy = inject(StoreDetailDeployService);
+  readonly branches = this.deploy.branches;
+  readonly isLoadingBranches = this.deploy.isLoadingBranches;
+  readonly branchesError = this.deploy.branchesError;
+  readonly isUpdatingAllowTest = this.deploy.isUpdatingAllowTest;
+  readonly pendingDeploy = this.deploy.pendingDeploy;
+  readonly customBranchMode = this.deploy.customBranchMode;
+  readonly isStoreDev = this.deploy.isStoreDev;
+  readonly canTest = this.deploy.canTest;
+  readonly isRunningTestBuild = this.deploy.isRunningTestBuild;
+  readonly activeDeploySource = this.deploy.activeDeploySource;
+  readonly deploySourceKind = this.deploy.kind;
+  readonly deploySourceValue = this.deploy.value;
+  readonly deploySourceError = this.deploy.validationError;
+  readonly isDeployBlocked = this.deploy.isBusy;
+  readonly deployActionLabel = this.deploy.actionLabel;
+  readonly deploySourceHint = this.deploy.hint;
+  readonly sourceKinds = this.deploy.sourceKinds;
+  // Helpers puros (no dependen de `this`) reexportados directo para el template.
+  readonly sourceLabel = this.deploy.sourceLabel;
+  readonly sourceCommitSuffix = this.deploy.sourceCommitSuffix;
+  readonly sourceUrl = this.deploy.sourceUrl;
 
   /** Indica si hay una versión más reciente de la plantilla disponible para esta tienda. */
   readonly isUpdateAvailable = computed<boolean>(() => {
@@ -206,12 +232,10 @@ export class StoreDetail implements OnInit {
   constructor() {
     effect(() => {
       const s = this.store();
+      // La fuente de despliegue vive en un servicio propio: se le empuja la tienda en foco.
+      this.deploy.syncStore(s);
       if (s) {
         void this.orchestrationService.checkOauthRedirect(s);
-        const latest = this.orchestrationService.latestVersion();
-        if (!this.selectedVersion() || this.selectedVersion() === '0.5.0') {
-          this.selectedVersion.set(s.templateVersion || latest?.version || '0.5.0');
-        }
       }
     });
 
@@ -229,6 +253,7 @@ export class StoreDetail implements OnInit {
 
   ngOnInit(): void {
     void this.loadVersions();
+    void this.orchestrationService.loadTemplateRefs();
     this.route.paramMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((params) => {
       const id = params.get('id');
       this.storeId.set(id);
@@ -269,49 +294,61 @@ export class StoreDetail implements OnInit {
 
   async loadVersions(force = false): Promise<void> {
     await this.orchestrationService.loadVersions(force);
-    const latest = this.orchestrationService.latestVersion();
-    const defaultVer =
-      this.store()?.templateVersion ||
-      latest?.version ||
-      this.availableVersions()[0]?.version ||
-      '0.9.4';
-    this.selectedVersion.set(defaultVer);
+    // El default de la fuente (release fijada, o la última publicada) lo resuelve el
+    // computed `deploy.draft`, así que no hace falta sembrar ningún signal acá.
   }
 
   async refreshVersions(): Promise<void> {
     await this.loadVersions(true);
+    await this.orchestrationService.loadTemplateRefs(true);
   }
 
   async triggerDeployment(): Promise<void> {
-    const s = this.store();
-    const version = this.selectedVersion();
-    if (!s) {
-      return;
-    }
-    const storeId = s.id;
-    this.orchestrationService.setDeployDismissed(storeId, false);
-    this.orchestrationService.setUserInitiated(storeId, true, Date.now());
-    this.orchestrationService.setStoreDeploying(storeId, true);
-    this.orchestrationService.setStoreUpdating(storeId, true);
-    this.orchestrationService.setLocalDeployError(storeId, '');
-    try {
-      if (this.deployTargetType() === 'branch') {
-        const branchRef = this.customBranchRef().trim() || 'develop';
-        await this.storesService.redeployStore(storeId, branchRef);
-      } else if (version === s.templateVersion) {
-        await this.storesService.redeployStore(storeId);
-      } else {
-        await this.storesService.updateStoreVersion(storeId, version);
-      }
-    } catch (err) {
-      this.orchestrationService.setLocalDeployError(
-        storeId,
-        errorMessage(err, 'No se pudo iniciar el despliegue.'),
-      );
-    } finally {
-      this.orchestrationService.setStoreDeploying(storeId, false);
-      this.orchestrationService.setStoreUpdating(storeId, false);
-    }
+    await this.deploy.requestDeployment();
+  }
+
+  async confirmPendingDeploy(): Promise<void> {
+    await this.deploy.confirmPendingDeploy();
+  }
+
+  cancelPendingDeploy(): void {
+    this.deploy.cancelPendingDeploy();
+  }
+
+  async redeployStable(): Promise<void> {
+    await this.deploy.redeployStable();
+  }
+
+  sourceKindLabel(kind: DeploySourceKind): string {
+    return this.deploy.sourceKindLabel(kind);
+  }
+
+  isModeDisabled(kind: DeploySourceKind): boolean {
+    return this.deploy.isModeDisabled(kind);
+  }
+
+  setDeploySourceKind(kind: DeploySourceKind): void {
+    this.deploy.setKind(kind);
+  }
+
+  setDeploySourceValue(value: string): void {
+    this.deploy.setValue(value);
+  }
+
+  onReleaseChange(event: Event): void {
+    this.deploy.onReleaseChange(event);
+  }
+
+  onBranchChange(event: Event): void {
+    this.deploy.onBranchChange(event);
+  }
+
+  toggleCustomBranchMode(enabled: boolean): void {
+    this.deploy.toggleCustomBranchMode(enabled);
+  }
+
+  toggleAllowTestDeployments(event: Event): void {
+    void this.deploy.toggleAllowTestDeployments((event.target as HTMLInputElement).checked);
   }
 
   async upgradeToLatestVersion(): Promise<void> {
@@ -319,8 +356,9 @@ export class StoreDetail implements OnInit {
     if (!latest?.version) {
       return;
     }
-    this.selectedVersion.set(latest.version);
-    await this.triggerDeployment();
+    this.deploy.setKind('release');
+    this.deploy.setValue(latest.version);
+    await this.deploy.requestDeployment();
   }
 
   async toggleAutoUpdate(event: Event): Promise<void> {
@@ -435,6 +473,15 @@ export class StoreDetail implements OnInit {
   generateAccessLink(email: string): Promise<void> {
     const s = this.store();
     return s ? this.staffService.generateAccessLink(s.id, email) : Promise.resolve();
+  }
+
+  /** Procedencia del build en el historial; los registros viejos se asumen release. */
+  historySourceKind(item: DeploymentHistoryItem): string {
+    return deployHistorySourceKind(item);
+  }
+
+  historySourceLabel(item: DeploymentHistoryItem): string {
+    return deployHistorySourceLabel(item);
   }
 
   formatVersion(v?: string): string {

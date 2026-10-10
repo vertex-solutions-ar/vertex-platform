@@ -388,8 +388,30 @@ describe('StoresService', () => {
     expect(mockHttpsCallable).toHaveBeenCalledWith(expect.anything(), 'redeployStore');
     expect(mockFn).toHaveBeenCalledWith({ storeId: 'store-abc' });
 
-    await service.redeployStore('store-abc', 'develop');
-    expect(mockFn).toHaveBeenCalledWith({ storeId: 'store-abc', ref: 'develop' });
+    await service.redeployStore('store-abc', { kind: 'branch', value: 'develop' });
+    expect(mockFn).toHaveBeenCalledWith({
+      storeId: 'store-abc',
+      source: { kind: 'branch', value: 'develop' },
+    });
+  });
+
+  it('listTemplateRefs calls listTemplateRefs cloud function', async () => {
+    const refs = {
+      defaultBranch: 'main',
+      branches: [{ name: 'develop', sha: 'abc1234def', shortSha: 'abc1234', isDefault: false }],
+      releases: [],
+    };
+    const mockFn = vi.fn().mockResolvedValue({ data: refs });
+    mockHttpsCallable.mockReturnValue(mockFn);
+
+    const { StoresService } = await import('./stores');
+    TestBed.configureTestingModule({ providers: [StoresService] });
+    const service = TestBed.inject(StoresService);
+
+    const result = await service.listTemplateRefs(true);
+    expect(mockHttpsCallable).toHaveBeenCalledWith(expect.anything(), 'listTemplateRefs');
+    expect(mockFn).toHaveBeenCalledWith({ forceRefresh: true });
+    expect(result).toEqual(refs);
   });
 
   it('deleteStore calls deleteStore cloud function', async () => {
