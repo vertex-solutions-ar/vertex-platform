@@ -245,6 +245,7 @@
 
             <div class="dns-form__actions">
               <button
+                type="button"
                 class="btn-connect-domain"
                 [disabled]="isConnectingDomain() || !canConnectDomain()"
                 (click)="connectDomain()"
@@ -282,7 +283,7 @@
               </div>
             </div>
 
-            <div class="dns-meta-info" class="dns-ssl-note">
+            <div class="dns-meta-info dns-ssl-note">
               <p>
                 El enrutamiento está configurado en Vertex API. Recordá que la propagación del
                 certificado SSL gratuito puede tardar entre 2 y 24 horas una vez creados los
@@ -292,6 +293,7 @@
 
             <div class="dns-actions-bar">
               <button
+                type="button"
                 class="btn btn-primary"
                 [disabled]="isVerifyingDNS()"
                 (click)="verifyDNS(false)"
@@ -303,6 +305,7 @@
                 }
               </button>
               <button
+                type="button"
                 class="btn btn-secondary"
                 [disabled]="domainRefreshLoading() || isVerifyingDNS()"
                 (click)="loadDomainStatus()"
@@ -315,6 +318,7 @@
                 }
               </button>
               <button
+                type="button"
                 class="btn btn-danger-ghost"
                 [disabled]="isDisconnectingDomain()"
                 (click)="openDisconnectDomainModal()"
@@ -384,7 +388,7 @@
       @if (dnsRecords().length > 0 || store()!.customDomain) {
         <div class="detail-card">
           <h2 class="detail-card__title"><i class="bi bi-server"></i> Registros DNS Requeridos</h2>
-          <p class="form-hint" class="dns-records-heading">
+          <p class="form-hint dns-records-heading">
             Ingresá al panel de control de tu registrador de dominio (e.g. NIC.ar, GoDaddy,
             Cloudflare) y da de alta los siguientes registros.
           </p>
@@ -432,6 +436,7 @@
                             <span class="copied-feedback">¡Copiado!</span>
                           } @else {
                             <button
+                              type="button"
                               class="btn btn-secondary btn--sm"
                               title="Copiar {{ record.type }} al portapapeles"
                               (click)="copyDnsRecord(record.type, record.value)"

@@ -322,6 +322,93 @@
   border-radius: var(--radius-sm);
 }
 
+/* Modificadores de tamaño para skeletons.
+   Reemplazan las dimensiones que antes se escribían como `style=""` inline en
+   seis templates distintos (H-03 en docs/ui-audit.md). */
+.skeleton--h-12 {
+  height: 12px;
+}
+
+.skeleton--h-14 {
+  height: 14px;
+}
+
+.skeleton--h-16 {
+  height: 16px;
+}
+
+.skeleton--h-22 {
+  height: 22px;
+}
+
+.skeleton--h-26 {
+  height: 26px;
+}
+
+.skeleton--h-50 {
+  height: 50px;
+}
+
+.skeleton--w-35 {
+  width: 35%;
+}
+
+.skeleton--w-40 {
+  width: 40%;
+}
+
+.skeleton--w-45 {
+  width: 45%;
+}
+
+.skeleton--w-50 {
+  width: 50%;
+}
+
+.skeleton--w-65 {
+  width: 65%;
+}
+
+.skeleton--w-70 {
+  width: 70%;
+}
+
+.skeleton--w-75 {
+  width: 75%;
+}
+
+.skeleton--w-85 {
+  width: 85%;
+}
+
+.skeleton--w-100 {
+  width: 100px;
+}
+
+.skeleton--w-120 {
+  width: 120px;
+}
+
+.skeleton--w-140 {
+  width: 140px;
+}
+
+.skeleton--w-220 {
+  width: 220px;
+}
+
+.skeleton--w-280 {
+  width: 280px;
+}
+
+.skeleton--mb-6 {
+  margin-bottom: 6px;
+}
+
+.skeleton--mb-8 {
+  margin-bottom: 8px;
+}
+
 @keyframes skeleton-shimmer {
   0% {
     background-position: 200% 0;

@@ -24,6 +24,7 @@
       <div class="detail-header__actions">
         @if (isUpdateAvailable() && store()!.status === 'active') {
           <button
+            type="button"
             class="btn btn-outline-warning"
             [disabled]="isDeploying() || deployActionState().status === 'running'"
             (click)="upgradeToLatestVersion()"
@@ -33,7 +34,7 @@
         }
 
         @if (store()!.status === 'active' || store()!.status === 'suspended') {
-          <button class="btn btn-secondary" (click)="openEdit()">
+          <button type="button" class="btn btn-secondary" (click)="openEdit()">
             <i class="bi bi-pencil"></i> Editar Info
           </button>
         }
@@ -120,6 +121,7 @@
           }
           <div class="provisioning-actions__buttons">
             <button
+              type="button"
               class="btn btn-primary"
               [disabled]="isRetrying()"
               (click)="retry()"
@@ -137,6 +139,7 @@
               }
             </button>
             <button
+              type="button"
               class="btn btn-danger"
               [disabled]="isDeleting()"
               (click)="showDeleteConfirm.set(true)"
@@ -790,6 +793,7 @@
                   <div class="op-control-card__footer">
                     @if (store()!.status === 'active') {
                       <button
+                        type="button"
                         class="btn btn-outline-warning op-control-card__btn"
                         [disabled]="isSuspending()"
                         (click)="showSleepConfirm.set(true)"
@@ -799,6 +803,7 @@
                     }
                     @if (store()!.status === 'suspended') {
                       <button
+                        type="button"
                         class="btn btn-success op-control-card__btn"
                         [disabled]="isActivating()"
                         (click)="activate()"
@@ -835,6 +840,7 @@
 
                     <div class="op-control-card__footer">
                       <button
+                        type="button"
                         class="btn btn-outline-danger op-control-card__btn"
                         [disabled]="isDeleting()"
                         (click)="showDeleteConfirm.set(true)"
@@ -1132,11 +1138,11 @@
                 <div class="skeleton skeleton--card-title"></div>
                 <div class="skeleton skeleton--text mb-4 mt-2"></div>
                 <div class="skeleton-history-table mt-3">
-                  <div class="skeleton skeleton--text mb-3" style="height: 38px"></div>
-                  <div class="skeleton skeleton--text mb-2" style="height: 48px"></div>
-                  <div class="skeleton skeleton--text mb-2" style="height: 48px"></div>
-                  <div class="skeleton skeleton--text mb-2" style="height: 48px"></div>
-                  <div class="skeleton skeleton--text mb-2" style="height: 48px"></div>
+                  <div class="skeleton--h-38 skeleton skeleton--text mb-3"></div>
+                  <div class="skeleton--h-48 skeleton skeleton--text mb-2"></div>
+                  <div class="skeleton--h-48 skeleton skeleton--text mb-2"></div>
+                  <div class="skeleton--h-48 skeleton skeleton--text mb-2"></div>
+                  <div class="skeleton--h-48 skeleton skeleton--text mb-2"></div>
                 </div>
               </div>
             } @else {
@@ -1155,6 +1161,7 @@
                   Publicaciones ejecutadas por GitHub Actions en Firebase Hosting (versión, rama y
                   commit por fila).
                   <button
+                    type="button"
                     class="btn btn-secondary btn--sm ms-2"
                     style="float: right"
                     (click)="refreshDeployHistory()"
@@ -1426,8 +1433,8 @@
               @if (logsLoading() && logsEntries().length === 0) {
                 <div class="detail-card detail-card--skeleton" aria-busy="true">
                   <div class="skeleton skeleton--text mb-2"></div>
-                  <div class="skeleton skeleton--text mb-2" style="width: 70%"></div>
-                  <div class="skeleton skeleton--text" style="width: 45%"></div>
+                  <div class="skeleton--w-70 skeleton skeleton--text mb-2"></div>
+                  <div class="skeleton--w-45 skeleton skeleton--text"></div>
                 </div>
               } @else if (logsEntries().length === 0 && !logsLoading() && !logsError()) {
                 <div class="empty-state" style="padding: 3rem 1.5rem; text-align: center">
@@ -1522,6 +1529,7 @@
                             type="button"
                             class="btn btn-secondary btn--sm"
                             title="Copiar contenido"
+                            aria-label="Copiar contenido"
                             (click)="copyLogPayload(entry.message || entry.raw || '')"
                           >
                             <i class="bi bi-clipboard"></i>
@@ -1648,12 +1656,14 @@
         </div>
         <div class="modal__actions">
           <button
+            type="button"
             class="btn btn-secondary"
             (click)="showSleepConfirm.set(false); sleepConfirmInput = ''"
           >
             Cancelar
           </button>
           <button
+            type="button"
             class="btn btn-warning"
             [disabled]="isSuspending() || sleepConfirmInput !== store()!.firebaseProjectId"
             (click)="suspend()"
@@ -1692,12 +1702,14 @@
         </div>
         <div class="modal__actions">
           <button
+            type="button"
             class="btn btn-secondary"
             (click)="showDeleteConfirm.set(false); deleteConfirmInput = ''"
           >
             Cancelar
           </button>
           <button
+            type="button"
             class="btn btn-danger"
             [disabled]="isDeleting() || deleteConfirmInput !== store()!.slug"
             (click)="deleteStore()"

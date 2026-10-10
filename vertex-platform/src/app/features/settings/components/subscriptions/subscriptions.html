@@ -69,7 +69,13 @@
           </div>
           <span class="badge badge--success">Acceso Maestro</span>
         </div>
-        <button type="button" class="btn-icon" (click)="toggleMasterConfig()" title="Cerrar panel">
+        <button
+          type="button"
+          class="btn-icon"
+          (click)="toggleMasterConfig()"
+          title="Cerrar panel"
+          aria-label="Cerrar panel"
+        >
           <i class="bi bi-x-lg"></i>
         </button>
       </div>
@@ -146,6 +152,7 @@
 
         <div class="form-actions mt-4">
           <button
+            type="button"
             class="btn btn-primary"
             (click)="savePlatformPricing()"
             [disabled]="isSavingPricing()"
@@ -248,7 +255,12 @@
           (input)="storeSearchQuery.set($any($event.target).value)"
         />
         @if (storeSearchQuery()) {
-          <button type="button" class="btn-clear" (click)="storeSearchQuery.set('')">
+          <button
+            type="button"
+            class="btn-clear"
+            (click)="storeSearchQuery.set('')"
+            aria-label="Limpiar búsqueda"
+          >
             <i class="bi bi-x-circle-fill"></i>
           </button>
         }
