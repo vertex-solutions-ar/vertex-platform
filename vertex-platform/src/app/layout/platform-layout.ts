@@ -71,6 +71,26 @@ export class PlatformLayout implements OnInit, OnDestroy {
 
   private readonly breakpointLg = 1024;
 
+  /**
+   * ¿La sidebar está en modo drawer (off-canvas)?
+   * Por debajo del breakpoint la navegación está oculta, así que hay que sacarla del
+   * orden de tabulación cuando está cerrada; en desktop la sidebar siempre es visible
+   * y **no** debe marcarse `inert` (rompería la navegación).
+   */
+  readonly isDrawerMode = signal(false);
+
+  /** La sidebar está fuera de pantalla: no debe ser tabulable. */
+  readonly isSidebarInert = computed(() => this.isDrawerMode() && !this.isSidebarOpen());
+
+  /** El contenido está dimmed detrás del drawer: no debe ser tabulable. */
+  readonly isMainInert = computed(() => this.isDrawerMode() && this.isSidebarOpen());
+
+  private syncDrawerMode(): void {
+    /* istanbul ignore next: entorno sin window (SSR/tests) */
+    const width = typeof window !== 'undefined' ? window.innerWidth : 0;
+    this.isDrawerMode.set(width <= this.breakpointLg);
+  }
+
   toggleSidebar(): void {
     this.isSidebarOpen.update((v) => !v);
   }
@@ -82,6 +102,7 @@ export class PlatformLayout implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
+    this.syncDrawerMode();
     try {
       this.alertUnsub = onSnapshot(
         collection(getFirestore(), 'alerts'),
@@ -115,8 +136,15 @@ export class PlatformLayout implements OnInit, OnDestroy {
     await this.router.navigate(['/login']);
   }
 
+  /** `Esc` cierra el drawer: antes sólo se podía cerrar con click en el backdrop. */
+  @HostListener('window:keydown.escape')
+  onEscape(): void {
+    this.closeSidebar();
+  }
+
   @HostListener('window:resize')
   onResize(): void {
+    this.syncDrawerMode();
     if (window.innerWidth > this.breakpointLg) {
       this.isSidebarOpen.set(false);
     }

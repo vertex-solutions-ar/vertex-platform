@@ -22,7 +22,7 @@ import type { Store } from '@core/models/store';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [FormsModule, DatePipe, DecimalPipe],
   templateUrl: './store-detail-payments.html',
-  styleUrl: '../store-detail/store-detail.scss',
+  styleUrls: ['../store-detail/store-detail.scss', './store-detail-payments.scss'],
 })
 export class StoreDetailPayments {
   readonly store = input<Store | null>(null);
@@ -98,12 +98,7 @@ export class StoreDetailPayments {
 
   simulateStoreExpiration(
     period:
-      | 'reset_trial'
-      | 'imminent'
-      | 'grace'
-      | 'grace_period'
-      | 'expired_suspended'
-      | 'canceled',
+      'reset_trial' | 'imminent' | 'grace' | 'grace_period' | 'expired_suspended' | 'canceled',
   ): Promise<void> {
     return this.payments.simulateStoreExpiration(period as never);
   }
@@ -337,6 +332,18 @@ export class StoreDetailPayments {
     }
     return base;
   });
+
+  /**
+   * Acordeón "Gestión y Facturación de la Tienda".
+   *
+   * Antes dependía de `data-bs-toggle="collapse"` (Bootstrap JS, no cargado) con
+   * `aria-expanded="false"` fijo, así que la sección nunca se podía abrir.
+   */
+  readonly masterControlsOpen = signal(false);
+
+  toggleMasterControls(): void {
+    this.masterControlsOpen.update((open) => !open);
+  }
 
   applyPricingOverride(): Promise<void> {
     return this.payments.applyPricingOverride();

@@ -4829,3 +4829,314 @@ html[data-theme='light'] {
     color: var(--platform-text-secondary);
   }
 }
+
+/* ══════════════════════════════════════════════════════════════════════
+   Fuente de despliegue (release vs prueba)
+   ══════════════════════════════════════════════════════════════════════ */
+
+.deploy-card__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.75rem;
+}
+
+.deploy-card__head .detail-card__desc {
+  margin-bottom: 0;
+}
+
+.active-source {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem 0.9rem;
+  margin-bottom: 0.85rem;
+  border-radius: 12px;
+  border: 1px solid var(--platform-card-border);
+  background: color-mix(in srgb, var(--platform-text-muted) 8%, transparent);
+}
+
+.active-source--test {
+  border-color: var(--platform-status-provisioning-border);
+  background: var(--platform-status-provisioning-bg);
+}
+
+.active-source__row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.active-source__label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--platform-text-muted);
+  font-weight: 600;
+}
+
+.active-source__value {
+  font-size: 0.85rem;
+  word-break: break-all;
+}
+
+.active-source__link {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.78rem;
+  color: var(--platform-accent-blue);
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.active-source__warning {
+  margin: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.45rem;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: var(--platform-status-provisioning-text);
+
+  i {
+    margin-top: 0.1rem;
+  }
+}
+
+.deploy-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  font-size: 0.9rem;
+  color: var(--platform-text-secondary);
+  margin-bottom: 0.6rem;
+
+  input[type='checkbox'] {
+    width: 1rem;
+    height: 1rem;
+    cursor: pointer;
+    accent-color: var(--platform-accent);
+  }
+}
+
+.deploy-toggle--inline {
+  margin-bottom: 0;
+  font-size: 0.82rem;
+}
+
+.deploy-hint {
+  margin: 0.5rem 0 0;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--platform-text-muted);
+}
+
+.deploy-hint--warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4rem;
+  color: var(--platform-status-provisioning-text);
+}
+
+.source-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.source-picker__modes {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.source-mode {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.8rem;
+  border-radius: 999px;
+  border: 1px solid var(--platform-card-border);
+  background: transparent;
+  color: var(--platform-text-secondary);
+  font-size: 0.82rem;
+  font-weight: 500;
+  transition: var(--transition-base);
+
+  &:hover:not(:disabled) {
+    border-color: var(--platform-card-border-hover);
+    color: var(--platform-text-primary);
+  }
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+}
+
+.source-mode--active {
+  background: var(--platform-accent-gradient);
+  border-color: transparent;
+  color: var(--platform-accent-text);
+}
+
+.source-picker__aux {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-top: 0.4rem;
+}
+
+.deploy-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  margin-top: 0.75rem;
+}
+
+.action-progress__icon--success {
+  color: var(--platform-success);
+}
+
+.action-progress__icon--error {
+  color: var(--platform-danger);
+}
+
+.action-progress__dismiss {
+  margin-left: 0.25rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--platform-text-secondary);
+  cursor: pointer;
+
+  &:hover {
+    background: var(--platform-hover-overlay);
+    color: var(--platform-text-primary);
+  }
+}
+
+@media (max-width: 640px) {
+  .deploy-card__head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .active-source__link {
+    margin-left: 0;
+  }
+
+  .deploy-actions .action-btn,
+  .source-picker__aux .btn-refresh {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .source-mode {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+}
+
+/* ── Reglas que estaban como `style=""` inline en el template (H-03) ────────
+   Fase 3: se reemplazaron los 17 últimos atributos style por clases, para que
+   el look de la pantalla deje de depender de valores sueltos en el markup. */
+.sd-step-error {
+  margin: 1rem 0;
+  padding: 0.75rem;
+  border-radius: 6px;
+  background: var(--platform-status-error-bg);
+  border: 1px solid var(--platform-status-error-border);
+  color: var(--platform-status-error-text);
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.sd-deploy-hint {
+  margin-bottom: 1rem;
+  text-transform: none;
+  font-weight: normal;
+  letter-spacing: normal;
+}
+
+.sd-invite-submit {
+  margin-top: 1rem;
+}
+
+.sd-deployment-empty {
+  padding: 2rem 0;
+}
+
+.sd-deploy-history-card {
+  margin-top: 1rem;
+}
+
+.sd-deployments-loading {
+  font-size: 0.9rem;
+  padding: 1rem 0;
+}
+
+.sd-deployment-title {
+  font-weight: 500;
+}
+
+.sd-deploy-history-intro {
+  font-size: 0.85rem;
+  color: var(--platform-text-secondary);
+  margin-bottom: 1.25rem;
+  line-height: 1.5;
+}
+
+.sd-refresh-history {
+  float: right;
+}
+
+.sd-empty-compact {
+  padding: 2rem 0;
+  text-align: center;
+}
+
+.sd-empty-roomy {
+  padding: 3rem 1.5rem;
+  text-align: center;
+}
+
+.sd-empty-icon {
+  font-size: 2rem;
+  color: var(--platform-text-secondary);
+  opacity: 0.5;
+}
+
+.sd-deploy-history-empty {
+  margin-top: 0.75rem;
+  color: var(--platform-text-secondary);
+  font-size: 0.9rem;
+}
+
+.sd-action-error-flush {
+  margin: 0.75rem 0 0;
+}
+
+.sd-form-extra {
+  margin: 1rem 0;
+}
+
+.sd-error-icon {
+  font-size: 2.5rem;
+}

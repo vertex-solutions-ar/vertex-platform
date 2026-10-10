@@ -13,6 +13,47 @@ export interface TemplateVersion {
   schemaVersion?: number;
 }
 
+export type DeploySourceKind = 'release' | 'branch' | 'commit';
+
+/**
+ * Fuente de la que se compiló (o se está compilando) el storefront de la tienda.
+ * `release` = tag publicado (canal estable); `branch`/`commit` = despliegue de prueba sin tag.
+ */
+export interface StoreDeploySource {
+  kind: DeploySourceKind;
+  /** `v0.9.5` | `develop` | `feat/x` | `a1b2c3d` */
+  ref: string;
+  /** Ref git enviado a GitHub Actions. */
+  gitRef?: string;
+  commitSha?: string;
+  commitMessage?: string;
+  commitDate?: string;
+  status?: 'pending' | 'ok' | 'failed';
+  error?: string | null;
+  requestedAt?: Date | string;
+  requestedBy?: string;
+}
+
+/** Rama del repositorio storefront, tal como la devuelve `listTemplateRefs`. */
+export interface TemplateBranch {
+  name: string;
+  sha: string;
+  shortSha: string;
+  isDefault: boolean;
+}
+
+/** Petición explícita de fuente de despliegue (payload de `redeployStore`). */
+export interface DeploySourceRequest {
+  kind: DeploySourceKind;
+  value: string;
+}
+
+export interface TemplateRefs {
+  defaultBranch: string;
+  branches: TemplateBranch[];
+  releases: TemplateVersion[];
+}
+
 export interface ProvisioningStep {
   status: StepStatus;
   label: string;
@@ -43,6 +84,12 @@ export interface Store {
   targetChannel?: string;
   schemaVersion?: number;
   templateCommit?: string;
+  /** Fuente de la que se compiló el storefront (release o prueba). */
+  deploySource?: StoreDeploySource;
+  /** SHA corto del último build desplegado, reportado por el workflow. */
+  lastDeployedCommit?: string;
+  /** Opt-in explícito para permitir ramas/commits en tiendas que no son development. */
+  allowTestDeployments?: boolean;
   versionUpdateStatus?: VersionUpdateStatus;
   versionUpdateTarget?: string;
   versionUpdateProgress?: {
@@ -117,10 +164,7 @@ export interface StoreSubscription {
 export type ProvisioningMode = 'EMPTY' | 'CATALOG_ONLY' | 'FULL_DEMO';
 
 export type BusinessVertical =
-  | 'INDUMENTARIA_MODA'
-  | 'GASTRONOMIA_CAFE'
-  | 'TECNOLOGIA'
-  | 'HOGAR_DECO';
+  'INDUMENTARIA_MODA' | 'GASTRONOMIA_CAFE' | 'TECNOLOGIA' | 'HOGAR_DECO';
 
 export interface CreateStorePayload {
   name: string;

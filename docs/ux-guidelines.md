@@ -18,21 +18,25 @@ Estándares de estados de carga y feedback del panel SaaS.
 
 ## Inventario de estados de carga (store-detail)
 
-| Acción | Signal | Spinner |
-|---|---|---|
-| Reintentar aprovisionamiento | `isRetrying` | ✅ |
-| Eliminar tienda | `isDeleting` | ✅ |
-| Auto-update toggle | `isUpdatingAutoUpdate` | ✅ |
-| Cargar versiones disponibles | `isLoadingVersions` | ✅ (texto) |
-| Aplicar versión | `isUpdatingVersion` | ✅ "Iniciando deploy…" |
-| Re-desplegar versión activa | `isRedeploying` | ✅ "Desplegando…" |
-| Semillar datos | `isSeeding` | ✅ |
-| Dormir/activar tienda | `isSuspending` | ✅ (modal) |
-| Cargar config | `isLoadingConfig` | ✅ spinner |
-| Guardar ajustes reactivos | `isSavingConfig` | ✅ |
-| Cargar staff | `isLoadingStaff` | ✅ |
-| Enviar invitación | — | ✅ |
-| Vincular dominio | `isConnectingDomain` | ✅ |
+| Acción                                  | Signal                                           | Spinner                |
+| --------------------------------------- | ------------------------------------------------ | ---------------------- |
+| Reintentar aprovisionamiento            | `isRetrying`                                     | ✅                     |
+| Eliminar tienda                         | `isDeleting`                                     | ✅                     |
+| Auto-update toggle                      | `isUpdatingAutoUpdate`                           | ✅                     |
+| Cargar versiones disponibles            | `isLoadingVersions`                              | ✅ (texto)             |
+| Cargar ramas para el selector de fuente | `isLoadingBranches`                              | ✅ (skeleton)          |
+| Aplicar versión                         | `isUpdatingVersion`                              | ✅ "Iniciando deploy…" |
+| Re-desplegar versión activa             | `isRedeploying`                                  | ✅ "Desplegando…"      |
+| Desplegar rama / commit (prueba)        | `pendingDeploy` (confirmación) + `deploy.isBusy` | ✅ modal + spinner     |
+| Volver a release estable                | `deploy.isBusy`                                  | ✅ spinner             |
+| Habilitar despliegues de prueba         | `isUpdatingAllowTest`                            | ✅ spinner             |
+| Semillar datos                          | `isSeeding`                                      | ✅                     |
+| Dormir/activar tienda                   | `isSuspending`                                   | ✅ (modal)             |
+| Cargar config                           | `isLoadingConfig`                                | ✅ spinner             |
+| Guardar ajustes reactivos               | `isSavingConfig`                                 | ✅                     |
+| Cargar staff                            | `isLoadingStaff`                                 | ✅                     |
+| Enviar invitación                       | —                                                | ✅                     |
+| Vincular dominio                        | `isConnectingDomain`                             | ✅                     |
 
 ## Listas
 
@@ -42,16 +46,29 @@ Estándares de estados de carga y feedback del panel SaaS.
 
 ```scss
 .skeleton {
-  background: linear-gradient(90deg, rgba(255,255,255,.06) 25%, rgba(255,255,255,.14) 50%, rgba(255,255,255,.06) 75%);
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.06) 25%,
+    rgba(255, 255, 255, 0.14) 50%,
+    rgba(255, 255, 255, 0.06) 75%
+  );
   background-size: 200% 100%;
   animation: skeleton-shimmer 1.4s ease-in-out infinite;
 }
-@keyframes skeleton-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+@keyframes skeleton-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
 ```
 
 ## Spinner reutilizable `<app-spinner>`
 
 Componente `AppSpinnerComponent` (`src/app/shared/components/app-spinner/`):
+
 - **3 tamaños**: `sm` (0.9rem), `md` (1.35rem), `lg` (2.2rem).
 - **Animación continua y detallada**: anillos concéntricos girando en direcciones
   opuestas + núcleo pulsante (solo `lg`).
@@ -78,3 +95,7 @@ curl -s https://vtx-<tienda>.web.app/$MAIN | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' 
 Si el bundle contiene la versión esperada, el deploy proviene de ese tag. Verificar
 también `window.__VERTEX_STORE_VERSION__`, el `<meta name="app-version">` y
 `appVersion` en `stores/{storeId}` — los tres coinciden con el mismo build.
+
+Para deploys de prueba (rama/commit) la verificación es la procedencia, no la versión:
+`assets/version.json` expone `sourceKind` / `sourceRef` / `commitSha`, y la tienda guarda
+`deploySource` + `lastDeployedCommit`. El detalle está en `agent.md` → _Fuente de Despliegue_.

@@ -113,11 +113,59 @@ cuando el storefront publica un nuevo release.
 
 ---
 
-## 🔄 Redespliegue de Tiendas para Pruebas (Sin Tag Nuevo)
+## 🔄 Fuente de Despliegue (Release vs Prueba, sin tag nuevo)
 
-- **Despliegue de Ramas / Test**: En el panel de detalle de la tienda (`/stores/:id` > tab Orquestación), además del selector de releases etiquetadas (`vX.Y.Z`), se dispone del modo **"Rama / Test (sin tag)"**.
-- **Soporte en Backend**: `redeployStore` (`stores.ts`) acepta el parámetro opcional `ref?: string` (ej. `develop`, `feat/mi-cambio`). Cuando se provee, la Cloud Function despacha el evento `provision-store` directamente con esa referencia en GitHub Actions (`client_payload.ref`), permitiendo probar cambios en caliente en shards de testing sin necesidad de generar un nuevo tag de release semver.
-- **Retrocompatibilidad**: Si no se especifica `ref`, se preserva el comportamiento estándar basado en la versión fijada de la plantilla o la política de actualización de la tienda.
+El panel de detalle de la tienda (`/stores/:id` > tab **Orquestación**) tiene un único
+selector de **fuente de despliegue** con tres modos:
+
+| Modo      | `gitRef` despachado                      | Guards                                                    |
+| --------- | ---------------------------------------- | --------------------------------------------------------- |
+| `release` | `refs/tags/vX.Y.Z`                       | Ninguno. Único modo admitido en tiendas de producción.    |
+| `branch`  | nombre de rama (ej. `develop`, `feat/x`) | Sólo tiendas development, o `allowTestDeployments: true`. |
+| `commit`  | SHA de 7–40 hex                          | Idem `branch`.                                            |
+
+Reglas del contrato (implementadas en `functions/src/deployment-source.ts`):
+
+- **Validación obligatoria**: `redeployStore` resuelve el ref contra la API de GitHub
+  (`GET /repos/{repo}/commits/{ref}`) _antes_ de despachar. Si no existe, falla con un
+  mensaje claro y la tienda **no** queda en `deploying`.
+- **`redeployStore` acepta** `{ storeId, source?: { kind, value } }`. La forma legacy
+  `ref: string` sigue soportada (equivale a `{ kind: 'branch' }`) pero está **deprecada**.
+- **Una sola ruta de despacho**: `dispatchStoreDeployment(storeId, source)` con `source`
+  obligatorio, compartida por `redeployStore` y `activateStore`. La política de refs vive en
+  `resolveDefaultDeploySource`, no duplicada.
+- **Las 9 propiedades raíz** del `client_payload` se mantienen intactas (ver #403). La
+  procedencia viaja dentro de `meta`: `source_kind`, `source_ref`, `source_sha`.
+- **`listTemplateRefs`** devuelve `{ defaultBranch, branches[], releases[] }` (cache 60 s) para
+  que el selector ofrezca ramas reales en lugar de texto libre.
+- **`activateStore` reusa `deploySource`**: reactivar una tienda en canal de prueba la
+  re-despliega en esa misma fuente; no la resetea en silencio a stable.
+- **Trazabilidad veraz**: `stores/{storeId}` guarda `deploySource {kind, ref, gitRef, commitSha,
+commitMessage, status, requestedAt, requestedBy}` y `lastDeployedCommit`. `targetChannel`
+  pasa a `test`/`stable` según la fuente. `templateVersion` **no se toca** en deploys de
+  prueba: sigue siendo la release estable de referencia.
+- **Historial real**: `completeStoreDeployment` / `completeVersionUpdate` aceptan
+  `sourceKind` / `sourceRef` / `sourceSha` (informativos) y el historial registra el ref y el
+  SHA **realmente compilados**, no `github.ref` (que en un `repository_dispatch` siempre es la
+  rama por defecto). El campo `ref` sigue siendo el ref del workflow porque es contra el que se
+  valida el claim OIDC — la autenticación no se debilitó.
+
+### Metadata del bundle (repo storefront)
+
+- `scripts/generate-build-info.js` agrega `sourceKind` y `sourceRef` a `BUILD_INFO` y a
+  `src/assets/version.json`, leyendo `DEPLOY_SOURCE_KIND` / `DEPLOY_SOURCE_REF`.
+- `deploy.yml` (job `provision-store`) resuelve la procedencia con `git rev-parse HEAD` tras el
+  checkout (`github.sha` **no** sirve en `repository_dispatch`) y la reporta a la plataforma.
+- `src/main.ts` expone `window.__VERTEX_STORE_SOURCE__` y los `<meta name="app-source-ref">` /
+  `<meta name="app-source-kind">` para verificar desde el sitio qué se compiló.
+
+### Promoción a release
+
+El panel **no** crea tags automáticamente. Un tag `vX.Y.Z` dispara `release.yml` →
+`create-release` (que falla si `package.json` del commit no coincide con el tag) →
+`sync-template-version.yml` (PR de bump) y `Deploy All Stores` (re-despliegue de **todas** las
+tiendas). Por eso la promoción es **asistida**: el panel muestra la rama y el commit validados
+y un enlace a GitHub para publicar la release con el flujo estándar (`npm run release:*`).
 
 ---
 

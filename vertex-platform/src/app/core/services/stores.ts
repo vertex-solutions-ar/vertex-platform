@@ -22,6 +22,8 @@ import type {
   StaffMember,
   PendingInvitation,
   TemplateVersion,
+  TemplateRefs,
+  DeploySourceRequest,
   PricingOverride,
 } from '../models/store';
 import type {
@@ -205,12 +207,29 @@ export class StoresService {
     return result.data;
   }
 
-  async redeployStore(storeId: string, ref?: string): Promise<void> {
-    const fn = httpsCallable<{ storeId: string; ref?: string }, { success: boolean }>(
+  /**
+   * Dispara un despliegue de la tienda.
+   *
+   * - Sin `source`: rige la política estándar de la tienda (release fijada / autoUpdate).
+   * - Con `source`: la plataforma valida el ref contra GitHub antes de despachar, y las
+   *   ramas/commits sólo se aceptan en tiendas development (o con opt-in explícito).
+   */
+  async redeployStore(storeId: string, source?: DeploySourceRequest): Promise<void> {
+    const fn = httpsCallable<
+      { storeId: string; source?: DeploySourceRequest },
+      { success: boolean }
+    >(this.fns, 'redeployStore');
+    await fn({ storeId, ...(source ? { source } : {}) });
+  }
+
+  /** Ramas y releases reales del repositorio storefront, para el selector de fuente. */
+  async listTemplateRefs(forceRefresh = false): Promise<TemplateRefs> {
+    const fn = httpsCallable<{ forceRefresh?: boolean }, TemplateRefs>(
       this.fns,
-      'redeployStore',
+      'listTemplateRefs',
     );
-    await fn({ storeId, ...(ref ? { ref } : {}) });
+    const result = await fn({ forceRefresh });
+    return result.data;
   }
 
   getStoreDeploymentHistory(storeId: string): Observable<Record<string, unknown>[]> {
@@ -489,7 +508,9 @@ export class StoresService {
 
   async updateStore(
     id: string,
-    data: Partial<Pick<Store, 'name' | 'ownerEmail' | 'logoUrl' | 'autoUpdate'>>,
+    data: Partial<
+      Pick<Store, 'name' | 'ownerEmail' | 'logoUrl' | 'autoUpdate' | 'allowTestDeployments'>
+    >,
   ): Promise<void> {
     await updateDoc(doc(this.db, 'stores', id), { ...data, updatedAt: serverTimestamp() });
   }
@@ -772,21 +793,12 @@ export interface StoreSubscriptionInfo {
     billingCycle?: 'monthly' | 'annual';
     amount?: number;
     currentPeriodEnd?:
-      | { toDate?: () => Date; seconds?: number; _seconds?: number }
-      | string
-      | Date
-      | null;
+      { toDate?: () => Date; seconds?: number; _seconds?: number } | string | Date | null;
     trialDays?: number;
     trialStartDate?:
-      | { toDate?: () => Date; seconds?: number; _seconds?: number }
-      | string
-      | Date
-      | null;
+      { toDate?: () => Date; seconds?: number; _seconds?: number } | string | Date | null;
     trialEndDate?:
-      | { toDate?: () => Date; seconds?: number; _seconds?: number }
-      | string
-      | Date
-      | null;
+      { toDate?: () => Date; seconds?: number; _seconds?: number } | string | Date | null;
     customMonthlyPrice?: number;
     customAnnualPrice?: number;
     discountPercent?: number;

@@ -1,0 +1,162 @@
+// ══════════════════════════════════════════════════════════════════════════
+// Tokens de diseño — Vertex Platform
+//
+// Única fuente de verdad para color, espaciado, radio y sombras en ambos temas.
+// Antes estaban partidos en un `:root` inicial y un `:root, html[data-theme='dark']`
+// posterior definido 300 líneas más abajo, lo que hacía imposible saber cuál ganaba.
+//
+// Reglas:
+//  - Ningún componente debe hardcodear `#hex`/`rgb()`: usar estos tokens.
+//  - Los nombres `--platform-*` se mantienen por compatibilidad con las pantallas
+//    existentes; la escala nueva (`--space-*`, `--radius-*`, `--z-*`) es aditiva.
+// ══════════════════════════════════════════════════════════════════════════
+
+:root,
+html[data-theme='dark'] {
+  /* Superficies */
+  --platform-bg: hsl(225, 30%, 6%);
+  --platform-bg-alt: hsl(225, 25%, 9%);
+  --platform-sidebar-bg: hsla(225, 30%, 6%, 0.85);
+  --platform-header-bg: hsla(225, 30%, 6%, 0.7);
+  --platform-header-bg-solid: hsl(225, 30%, 7%);
+
+  /* Tarjetas glassmórficas */
+  --platform-card-bg: hsla(225, 20%, 12%, 0.45);
+  --platform-card-border: hsla(0, 0%, 100%, 0.05);
+  --platform-card-border-hover: hsla(245, 75%, 65%, 0.35);
+  --platform-card-radius: 18px;
+
+  /* Tipografía */
+  --platform-text-primary: hsl(210, 40%, 98%);
+  --platform-text-secondary: hsla(215, 25%, 85%, 0.85);
+  --platform-text-muted: hsla(215, 15%, 75%, 0.5);
+
+  /* Acentos */
+  --platform-accent-purple: hsl(244, 75%, 64%);
+  --platform-accent-blue: hsl(199, 89%, 48%);
+  --platform-accent-gradient: linear-gradient(135deg, hsl(244, 75%, 64%), hsl(244, 70%, 58%));
+  --platform-accent: hsl(244, 75%, 64%);
+  --platform-accent-hover: hsl(244, 70%, 58%);
+  --platform-accent-text: #ffffff;
+
+  /* Estados semánticos */
+  --platform-danger: hsl(350, 90%, 70%);
+  --platform-warning: hsl(38, 95%, 62%);
+  --platform-success: hsl(142, 75%, 60%);
+  --platform-info: hsl(199, 89%, 60%);
+
+  --platform-status-active-bg: hsla(142, 70%, 45%, 0.07);
+  --platform-status-active-text: hsl(142, 75%, 70%);
+  --platform-status-active-border: hsla(142, 70%, 45%, 0.25);
+
+  --platform-status-provisioning-bg: hsla(38, 92%, 50%, 0.07);
+  --platform-status-provisioning-text: hsl(38, 95%, 65%);
+  --platform-status-provisioning-border: hsla(38, 92%, 50%, 0.25);
+
+  --platform-status-error-bg: hsla(350, 84%, 48%, 0.07);
+  --platform-status-error-text: hsl(350, 90%, 75%);
+  --platform-status-error-border: hsla(350, 84%, 48%, 0.25);
+
+  --platform-status-suspended-bg: hsla(215, 16%, 47%, 0.1);
+  --platform-status-suspended-text: hsl(215, 20%, 75%);
+  --platform-status-suspended-border: hsla(215, 16%, 47%, 0.25);
+
+  /* Superficies derivadas e interactivas */
+  --platform-overlay: rgba(2, 6, 23, 0.6);
+  --platform-glass-modal-bg: hsla(225, 30%, 8%, 0.78);
+  --platform-input-bg: hsla(225, 20%, 10%, 0.5);
+  --platform-input-border: hsla(0, 0%, 100%, 0.1);
+  --platform-hover-overlay: hsla(0, 0%, 100%, 0.05);
+  --platform-scroll-thumb: hsla(0, 0%, 100%, 0.14);
+  --platform-focus-ring: hsla(244, 75%, 64%, 0.5);
+
+  /* Sombras */
+  --platform-shadow-card: 0 8px 28px rgba(2, 6, 23, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  --platform-shadow-1: 0 2px 10px rgba(2, 6, 23, 0.18);
+  --platform-shadow-2: 0 10px 28px -10px rgba(0, 0, 0, 0.35);
+
+  /* Layout */
+  --platform-sidebar-width: 260px;
+  --platform-header-height: 64px;
+
+  /* Escala de espaciado (8px base) — usar en todo componente nuevo */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+
+  /* Radios */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: var(--platform-card-radius);
+  --radius-pill: 9999px;
+
+  /* Planos Z */
+  --z-sticky: 10;
+  --z-header: 40;
+  --z-drawer: 60;
+  --z-modal: 80;
+
+  /* Movimiento */
+  --transition-base: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 0.45s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+/* Modo claro — misma semántica, valores claros (Material 3) */
+html[data-theme='light'] {
+  --platform-bg: hsl(220, 30%, 97%);
+  --platform-bg-alt: hsl(220, 25%, 94%);
+  --platform-sidebar-bg: hsla(220, 30%, 100%, 0.9);
+  --platform-header-bg: hsla(220, 30%, 100%, 0.75);
+  --platform-header-bg-solid: hsl(220, 25%, 99%);
+
+  --platform-card-bg: hsl(0, 0%, 100%);
+  --platform-card-border: hsl(220, 18%, 82%);
+  --platform-card-border-hover: hsla(244, 75%, 60%, 0.4);
+
+  --platform-text-primary: hsl(220, 28%, 10%);
+  --platform-text-secondary: hsl(220, 18%, 30%);
+  --platform-text-muted: hsl(220, 14%, 46%);
+
+  --platform-accent-purple: hsl(244, 65%, 52%);
+  --platform-accent-blue: hsl(199, 92%, 40%);
+  --platform-accent-gradient: linear-gradient(
+    135deg,
+    hsl(199, 92%, 42%) 0%,
+    hsl(244, 65%, 56%) 100%
+  );
+  --platform-accent: hsl(244, 65%, 52%);
+  --platform-accent-hover: hsl(244, 70%, 46%);
+
+  --platform-danger: hsl(350, 84%, 46%);
+  --platform-warning: hsl(38, 92%, 42%);
+  --platform-success: hsl(142, 65%, 36%);
+  --platform-info: hsl(199, 92%, 38%);
+
+  --platform-status-active-bg: hsla(142, 70%, 40%, 0.08);
+  --platform-status-active-text: hsl(142, 70%, 32%);
+  --platform-status-active-border: hsla(142, 70%, 40%, 0.28);
+  --platform-status-provisioning-bg: hsla(38, 92%, 45%, 0.1);
+  --platform-status-provisioning-text: hsl(38, 90%, 38%);
+  --platform-status-provisioning-border: hsla(38, 92%, 45%, 0.3);
+  --platform-status-error-bg: hsla(350, 84%, 50%, 0.08);
+  --platform-status-error-text: hsl(350, 84%, 45%);
+  --platform-status-error-border: hsla(350, 84%, 50%, 0.3);
+  --platform-status-suspended-bg: hsla(215, 16%, 50%, 0.1);
+  --platform-status-suspended-text: hsl(215, 20%, 42%);
+  --platform-status-suspended-border: hsla(215, 16%, 45%, 0.28);
+
+  --platform-overlay: rgba(15, 23, 42, 0.35);
+  --platform-glass-modal-bg: hsla(220, 30%, 100%, 0.9);
+  --platform-input-bg: hsl(0, 0%, 100%);
+  --platform-input-border: hsl(220, 20%, 82%);
+  --platform-hover-overlay: rgba(15, 23, 42, 0.05);
+  --platform-scroll-thumb: hsla(220, 15%, 45%, 0.3);
+  --platform-focus-ring: hsla(244, 75%, 52%, 0.4);
+
+  --platform-shadow-card: 0 8px 28px rgba(15, 23, 42, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  --platform-shadow-1: 0 1px 8px rgba(15, 23, 42, 0.06);
+  --platform-shadow-2: 0 8px 24px -12px rgba(15, 23, 42, 0.16);
+}

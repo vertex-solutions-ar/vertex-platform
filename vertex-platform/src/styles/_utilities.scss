@@ -1,0 +1,487 @@
+// ══════════════════════════════════════════════════════════════════════════
+// Utilidades — subset real usado por los templates
+//
+// CONTEXTO (hallazgo H-02 del audit): la app NO carga Bootstrap (`bootstrap` no
+// está en package.json, `angular.json` sólo compila `styles.scss` y el único
+// CDN es `bootstrap-icons`), pero los templates están escritos con utilidades de
+// Bootstrap. Había ~185 usos de spacing y ~90 de flex/text que no producían
+// ningún efecto, y eso explica el espaciado inconsistente y que se parcheara con
+// `style=""` inline.
+//
+// Este archivo define exactamente las utilidades que los templates usan (1130
+// clases inventariadas; acá está el subset de Bootstrap, el resto son clases
+// propias de cada componente). Sin `!important`: Angular inyecta los estilos de
+// componente después del global, así que un componente siempre puede
+// sobrescribir una utilidad sin pelear.
+//
+// NO se definen a propósito `.collapse` / `.collapsed`: en
+// `store-detail-payments` son un acordeón de Bootstrap JS que no funciona. Si se
+// implementara `.collapse:not(.show){display:none}` el contenido de pagos quedaría
+// oculto hasta la fase 4. Ver docs/ui-audit.md.
+// ══════════════════════════════════════════════════════════════════════════
+
+@use 'mixins' as *;
+
+/* ── Escala de espaciado (equivalente a Bootstrap: 1=.25rem … 5=3rem) ─────── */
+$u1: 0.25rem;
+$u2: 0.5rem;
+$u3: 1rem;
+$u4: 1.5rem;
+$u5: 3rem;
+
+/* ── Display y flexbox ────────────────────────────────────────────────────── */
+.d-block {
+  display: block;
+}
+
+.d-flex {
+  display: flex;
+}
+
+.d-inline-flex {
+  display: inline-flex;
+}
+
+.flex-column {
+  flex-direction: column;
+}
+
+.flex-wrap {
+  flex-wrap: wrap;
+}
+
+.flex-1 {
+  flex: 1 1 0%;
+}
+
+.align-items-center {
+  align-items: center;
+}
+
+.align-self-end {
+  align-self: flex-end;
+}
+
+.align-middle {
+  vertical-align: middle;
+}
+
+.align-baseline {
+  vertical-align: baseline;
+}
+
+.justify-content-between {
+  justify-content: space-between;
+}
+
+.justify-content-end {
+  justify-content: flex-end;
+}
+
+/* ── Grid mínimo (flex + gap, sin márgenes negativos) ─────────────────────── */
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.col {
+  flex: 1 1 0%;
+}
+
+.col-auto {
+  flex: 0 0 auto;
+}
+
+.col-12 {
+  flex: 0 0 100%;
+}
+
+@include from(md) {
+  .col-md-4 {
+    flex: 0 0 calc(33.3333% - var(--space-2));
+    max-width: calc(33.3333% - var(--space-2));
+  }
+
+  .col-md-5 {
+    flex: 0 0 calc(41.6667% - var(--space-2));
+    max-width: calc(41.6667% - var(--space-2));
+  }
+
+  .col-md-7 {
+    flex: 0 0 calc(58.3333% - var(--space-2));
+    max-width: calc(58.3333% - var(--space-2));
+  }
+}
+
+/* ── Gaps ─────────────────────────────────────────────────────────────────── */
+.gap-1 {
+  gap: $u1;
+}
+
+.gap-2,
+.g-2 {
+  gap: $u2;
+}
+
+.gap-3 {
+  gap: $u3;
+}
+
+/* ── Márgenes ─────────────────────────────────────────────────────────────── */
+.m-0 {
+  margin: 0;
+}
+
+.m-1 {
+  margin: $u1;
+}
+
+.m-2 {
+  margin: $u2;
+}
+
+.mt-1 {
+  margin-top: $u1;
+}
+
+.mt-2 {
+  margin-top: $u2;
+}
+
+.mt-3 {
+  margin-top: $u3;
+}
+
+.mt-4 {
+  margin-top: $u4;
+}
+
+.mb-0 {
+  margin-bottom: 0;
+}
+
+.mb-1 {
+  margin-bottom: $u1;
+}
+
+.mb-2 {
+  margin-bottom: $u2;
+}
+
+.mb-3 {
+  margin-bottom: $u3;
+}
+
+.mb-4 {
+  margin-bottom: $u4;
+}
+
+.ms-0 {
+  margin-left: 0;
+}
+
+.ms-1 {
+  margin-left: $u1;
+}
+
+.ms-2 {
+  margin-left: $u2;
+}
+
+.ms-auto {
+  margin-left: auto;
+}
+
+.me-1 {
+  margin-right: $u1;
+}
+
+.me-2 {
+  margin-right: $u2;
+}
+
+/* ── Paddings ─────────────────────────────────────────────────────────────── */
+.p-0 {
+  padding: 0;
+}
+
+.p-2 {
+  padding: $u2;
+}
+
+.p-3 {
+  padding: $u3;
+}
+
+.pt-0 {
+  padding-top: 0;
+}
+
+.pt-2 {
+  padding-top: $u2;
+}
+
+.pt-3 {
+  padding-top: $u3;
+}
+
+.pb-0 {
+  padding-bottom: 0;
+}
+
+.px-0 {
+  padding-right: 0;
+  padding-left: 0;
+}
+
+.px-3 {
+  padding-right: $u3;
+  padding-left: $u3;
+}
+
+.px-4 {
+  padding-right: $u4;
+  padding-left: $u4;
+}
+
+.py-2 {
+  padding-top: $u2;
+  padding-bottom: $u2;
+}
+
+.py-3 {
+  padding-top: $u3;
+  padding-bottom: $u3;
+}
+
+.py-5 {
+  padding-top: $u5;
+  padding-bottom: $u5;
+}
+
+/* ── Tipografía y color de texto ──────────────────────────────────────────── */
+.small {
+  font-size: 0.875em;
+}
+
+.fs-1 {
+  font-size: 1.75rem;
+}
+
+.fs-2 {
+  font-size: 1.5rem;
+}
+
+.fs-5 {
+  font-size: 1.25rem;
+}
+
+.fw-bold {
+  font-weight: 700;
+}
+
+.fw-semibold {
+  font-weight: 600;
+}
+
+.text-center {
+  text-align: center;
+}
+
+.text-end,
+.text-right {
+  text-align: right;
+}
+
+.text-nowrap {
+  white-space: nowrap;
+}
+
+.text-uppercase {
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.text-muted {
+  color: var(--platform-text-muted);
+}
+
+.text-danger {
+  color: var(--platform-danger);
+}
+
+.text-success {
+  color: var(--platform-success);
+}
+
+.text-warning {
+  color: var(--platform-warning);
+}
+
+.text-info {
+  color: var(--platform-info);
+}
+
+.text-light {
+  color: var(--platform-text-secondary);
+}
+
+.text-white {
+  color: var(--platform-text-primary);
+}
+
+/* `text-primary` es el color de marca del panel (no el azul de Bootstrap). */
+.text-primary {
+  color: var(--platform-accent-purple);
+}
+
+/* ── Tamaños ──────────────────────────────────────────────────────────────── */
+.w-100 {
+  width: 100%;
+}
+
+.h-100 {
+  height: 100%;
+}
+
+/* ── Bordes y radios ──────────────────────────────────────────────────────── */
+.border {
+  border: 1px solid var(--platform-card-border);
+}
+
+.border-0 {
+  border: 0;
+}
+
+.border-top {
+  border-top: 1px solid var(--platform-card-border);
+}
+
+.rounded {
+  border-radius: var(--radius-sm);
+}
+
+.rounded-3 {
+  border-radius: var(--radius-md);
+}
+
+.rounded-pill {
+  border-radius: var(--radius-pill);
+}
+
+/* ── Botón de cierre (`.btn-close` de Bootstrap, antes invisible) ─────────── */
+.btn-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--platform-text-secondary);
+  cursor: pointer;
+  transition: var(--transition-base);
+
+  &:hover {
+    background: var(--platform-hover-overlay);
+    color: var(--platform-text-primary);
+  }
+
+  /* Cruz dibujada por CSS: no depende de bootstrap-icons ni de una imagen. */
+  &::before {
+    content: '';
+    width: 0.7rem;
+    height: 0.7rem;
+    background:
+      linear-gradient(45deg, transparent 45%, currentColor 45%, currentColor 55%, transparent 55%),
+      linear-gradient(-45deg, transparent 45%, currentColor 45%, currentColor 55%, transparent 55%);
+  }
+}
+
+.btn-close-white {
+  color: var(--platform-text-primary);
+}
+
+/* ── Formularios ──────────────────────────────────────────────────────────── */
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-bottom: var(--space-4);
+}
+
+/* ── Transiciones de visibilidad (sin ocultar contenido por defecto) ───────── */
+.fade {
+  transition: opacity 0.15s linear;
+}
+
+.show {
+  opacity: 1;
+}
+
+/* ── Modal genérico (chrome mínimo; las pantallas definen su propio `.modal`) ─ */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  background: var(--platform-overlay);
+}
+
+.modal-dialog {
+  position: relative;
+  z-index: calc(var(--z-modal) + 1);
+  width: min(100% - 2 * var(--space-4), 32rem);
+  margin: var(--space-5) auto;
+}
+
+.modal-dialog-centered {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100%;
+}
+
+.modal-lg {
+  width: min(100% - 2 * var(--space-4), 50rem);
+}
+
+.modal-content {
+  background: var(--platform-glass-modal-bg);
+  border: 1px solid var(--platform-card-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--platform-shadow-2);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+}
+
+.modal-header,
+.modal-footer {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-4);
+}
+
+.modal-header {
+  justify-content: space-between;
+  border-bottom: 1px solid var(--platform-card-border);
+}
+
+.modal-footer {
+  justify-content: flex-end;
+  border-top: 1px solid var(--platform-card-border);
+}
+
+.modal-body {
+  padding: var(--space-4);
+}
+
+.modal-title {
+  font-family: 'Outfit', sans-serif;
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 0;
+}

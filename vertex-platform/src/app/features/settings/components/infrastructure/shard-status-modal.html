@@ -16,7 +16,7 @@
             <code>{{ shard.projectId }}</code>
           </p>
         </div>
-        <button class="modal-card__close" aria-label="Cerrar" (click)="closed.emit()">
+        <button type="button" class="modal-card__close" aria-label="Cerrar" (click)="closed.emit()">
           <i class="bi bi-x-lg"></i>
         </button>
       </div>
@@ -159,7 +159,7 @@
                     Pegá la siguiente URL:
                     <div class="copy-row">
                       <code class="copy-row__uri">{{ shard.redirectUri }}</code>
-                      <button class="copy-row__btn" (click)="copy(shard.redirectUri)">
+                      <button type="button" class="copy-row__btn" (click)="copy(shard.redirectUri)">
                         {{ copied() ? 'Copiado ✓' : 'Copiar' }}
                       </button>
                     </div>
@@ -251,7 +251,9 @@
       }
 
       <div class="modal-card__footer">
-        <button class="btn btn-secondary btn--sm" (click)="closed.emit()">Cerrar</button>
+        <button type="button" class="btn btn-secondary btn--sm" (click)="closed.emit()">
+          Cerrar
+        </button>
       </div>
     </div>
   </div>

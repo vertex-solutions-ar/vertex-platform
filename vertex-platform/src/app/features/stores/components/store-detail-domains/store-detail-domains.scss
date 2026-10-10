@@ -1,0 +1,120 @@
+@use '../../../../../styles/mixins' as *;
+
+// ══════════════════════════════════════════════════════════════════════════
+// Pestaña Dominios
+//
+// Este componente no tenía stylesheet propio: heredaba (y sigue heredando, vía
+// `styleUrls`) los 4 831 líneas de `store-detail.scss`. Acá viven las reglas que
+// faltaban —verificadas contra el CSS compilado (H-01 en docs/ui-audit.md)— más
+// las variantes de alerta que los templates ya usaban con otro nombre.
+// ══════════════════════════════════════════════════════════════════════════
+
+/* ── Barra de acciones del formulario DNS (antes con `style=""` inline) ──── */
+.dns-actions-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+
+  @include until(sm) {
+    flex-direction: column;
+    align-items: stretch;
+
+    .btn,
+    .btn-primary,
+    .btn-secondary,
+    .btn-danger-ghost {
+      width: 100%;
+      justify-content: center;
+    }
+  }
+}
+
+/* ── Nota informativa bajo la tabla DNS ─────────────────────────────────── */
+.dns-meta-info {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  padding: 0.65rem 0.85rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--platform-card-border);
+  background: var(--platform-hover-overlay);
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: var(--platform-text-secondary);
+
+  i {
+    margin-top: 0.1rem;
+    color: var(--platform-info);
+  }
+
+  code {
+    white-space: nowrap;
+  }
+}
+
+/* ── Variantes de alerta con la nomenclatura que usan los templates ──────
+   El stylesheet heredado define `.alert-error` / `.alert-success`; los
+   templates usan `alert--error` / `alert--success`, así que estos avisos se
+   mostraban sin fondo ni color. */
+.alert--error {
+  background: var(--platform-status-error-bg);
+  border: 1px solid var(--platform-status-error-border);
+  color: var(--platform-status-error-text);
+}
+
+.alert--success {
+  background: var(--platform-status-active-bg);
+  border: 1px solid var(--platform-status-active-border);
+  color: var(--platform-status-active-text);
+}
+
+/* ── Reglas que estaban como `style=""` inline en el template (H-03) ─────── */
+.skeleton--block {
+  height: 60px;
+}
+
+.dns-ssl-note {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--platform-card-border);
+
+  p {
+    margin: 0;
+    font-size: 0.85rem;
+    color: var(--platform-text-muted);
+  }
+}
+
+.dns-check-error {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-top: 0.75rem;
+  font-size: 0.85rem;
+  color: var(--platform-danger);
+}
+
+.dns-records-heading {
+  margin-bottom: 1.25rem;
+  text-transform: none;
+  font-weight: normal;
+  letter-spacing: normal;
+}
+
+.modal__body {
+  margin: 0 0 1rem;
+  font-size: 0.9rem;
+  line-height: 1.55;
+  color: var(--platform-text-secondary);
+}
+
+.modal__body--muted {
+  color: var(--platform-text-muted);
+}
+
+.modal__body--error {
+  color: var(--platform-danger);
+}
