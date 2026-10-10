@@ -179,6 +179,8 @@ export class StoreDetail implements OnInit {
   readonly latestVersion = this.orchestrationService.latestVersion;
   readonly isUpdatingAutoUpdate = signal(false);
   readonly selectedVersion = signal('0.5.0');
+  readonly deployTargetType = signal<'version' | 'branch'>('version');
+  readonly customBranchRef = signal('develop');
   readonly statusLabel = statusLabelUtil;
 
   /** Indica si hay una versión más reciente de la plantilla disponible para esta tienda. */
@@ -272,7 +274,7 @@ export class StoreDetail implements OnInit {
       this.store()?.templateVersion ||
       latest?.version ||
       this.availableVersions()[0]?.version ||
-      '0.8.5';
+      '0.9.4';
     this.selectedVersion.set(defaultVer);
   }
 
@@ -283,7 +285,7 @@ export class StoreDetail implements OnInit {
   async triggerDeployment(): Promise<void> {
     const s = this.store();
     const version = this.selectedVersion();
-    if (!s || !version) {
+    if (!s) {
       return;
     }
     const storeId = s.id;
@@ -293,7 +295,10 @@ export class StoreDetail implements OnInit {
     this.orchestrationService.setStoreUpdating(storeId, true);
     this.orchestrationService.setLocalDeployError(storeId, '');
     try {
-      if (version === s.templateVersion) {
+      if (this.deployTargetType() === 'branch') {
+        const branchRef = this.customBranchRef().trim() || 'develop';
+        await this.storesService.redeployStore(storeId, branchRef);
+      } else if (version === s.templateVersion) {
         await this.storesService.redeployStore(storeId);
       } else {
         await this.storesService.updateStoreVersion(storeId, version);

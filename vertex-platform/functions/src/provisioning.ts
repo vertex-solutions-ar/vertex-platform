@@ -42,7 +42,7 @@ import { checkRateLimit, logAuditAction } from './stores';
 import { verifyGitHubOidcToken } from './github-oidc';
 import { evaluateShardReadiness } from './shard-validator';
 
-const CURRENT_TEMPLATE_VERSION = '0.8.5';
+const CURRENT_TEMPLATE_VERSION = '0.9.4';
 
 export function normalizeStorageBucket(
   projectId: string,
