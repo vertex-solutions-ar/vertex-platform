@@ -24,6 +24,7 @@
       <div class="detail-header__actions">
         @if (isUpdateAvailable() && store()!.status === 'active') {
           <button
+            type="button"
             class="btn btn-outline-warning"
             [disabled]="isDeploying() || deployActionState().status === 'running'"
             (click)="upgradeToLatestVersion()"
@@ -33,7 +34,7 @@
         }
 
         @if (store()!.status === 'active' || store()!.status === 'suspended') {
-          <button class="btn btn-secondary" (click)="openEdit()">
+          <button type="button" class="btn btn-secondary" (click)="openEdit()">
             <i class="bi bi-pencil"></i> Editar Info
           </button>
         }
@@ -99,17 +100,7 @@
         @if (
           store()!.status === 'error' && (store()!.unhandledProvisioningError || store()!.error)
         ) {
-          <div
-            class="step-item__error"
-            style="
-              margin-top: 1rem;
-              margin-bottom: 1rem;
-              padding: 0.75rem;
-              border-radius: 6px;
-              background: rgba(239, 68, 68, 0.1);
-              border: 1px solid rgba(239, 68, 68, 0.2);
-            "
-          >
+          <div class="step-item__error sd-step-error">
             {{ store()!.unhandledProvisioningError || store()!.error }}
           </div>
         }
@@ -120,6 +111,7 @@
           }
           <div class="provisioning-actions__buttons">
             <button
+              type="button"
               class="btn btn-primary"
               [disabled]="isRetrying()"
               (click)="retry()"
@@ -137,6 +129,7 @@
               }
             </button>
             <button
+              type="button"
               class="btn btn-danger"
               [disabled]="isDeleting()"
               (click)="showDeleteConfirm.set(true)"
@@ -388,222 +381,265 @@
 
             <!-- Unified Version & Deployment Card -->
             @if (store()!.status === 'active') {
-              <div class="detail-card">
-                <div class="d-flex align-items-center justify-content-between mb-2">
-                  <h2 class="detail-card__title mb-0">Publicación y Despliegue de Plantilla</h2>
-                  <span class="badge badge--primary px-2 py-1">
-                    Versión activa: v{{ store()!.templateVersion || '0.9.4' }}
+              <div class="detail-card deploy-card">
+                <div class="deploy-card__head">
+                  <div>
+                    <h2 class="detail-card__title">Publicación y Despliegue de Plantilla</h2>
+                    <p class="detail-card__desc">
+                      Elegí de dónde se compila el storefront: una release publicada, una rama (para
+                      probar sin crear un tag) o un commit puntual.
+                    </p>
+                  </div>
+                  <span
+                    class="badge"
+                    [class.badge--success]="!isRunningTestBuild()"
+                    [class.badge--warning]="isRunningTestBuild()"
+                  >
+                    <i
+                      class="bi"
+                      [class.bi-tag-fill]="!isRunningTestBuild()"
+                      [class.bi-git]="isRunningTestBuild()"
+                    ></i>
+                    {{ isRunningTestBuild() ? 'Canal de prueba' : 'Canal estable' }}
                   </span>
                 </div>
-                <p class="detail-card__desc">
-                  Elegí la versión de la plantilla storefront que deseás compilar y publicar en
-                  Firebase Hosting, o re-desplegá la versión activa para aplicar los cambios más
-                  recientes.
-                </p>
 
-                <div
-                  class="auto-update-toggle mb-3"
-                  style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1.25rem"
-                >
-                  <label
-                    class="toggle-label"
-                    style="
-                      display: flex;
-                      align-items: center;
-                      gap: 0.5rem;
-                      cursor: pointer;
-                      font-size: 0.9rem;
-                    "
-                  >
-                    <input
-                      type="checkbox"
-                      [checked]="store()!.autoUpdate"
-                      (change)="toggleAutoUpdate($event)"
-                      [disabled]="isUpdatingAutoUpdate()"
-                      style="width: 1rem; height: 1rem; cursor: pointer"
-                    />
-                    <span>Actualizar automáticamente al lanzar nueva versión del template</span>
-                  </label>
-                  @if (isUpdatingAutoUpdate()) {
-                    <span class="spinner-sm"></span>
+                <div class="active-source" [class.active-source--test]="isRunningTestBuild()">
+                  <div class="active-source__row">
+                    <span class="active-source__label">Fuente activa</span>
+                    <code class="active-source__value"
+                      >{{ sourceLabel(activeDeploySource(), store()!.templateVersion)
+                      }}{{ sourceCommitSuffix(activeDeploySource()) }}</code
+                    >
+                    <a
+                      class="active-source__link"
+                      [href]="sourceUrl(activeDeploySource())"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      Ver en GitHub <i class="bi bi-box-arrow-up-right"></i>
+                    </a>
+                  </div>
+                  @if (isRunningTestBuild()) {
+                    <p class="active-source__warning">
+                      <i class="bi bi-exclamation-triangle-fill"></i>
+                      Esta tienda está corriendo código de prueba, sin release etiquetada. La
+                      versión estable de referencia continúa siendo v{{
+                        store()!.templateVersion || '0.9.4'
+                      }}.
+                    </p>
                   }
                 </div>
 
-                <div class="version-selector">
+                <label class="deploy-toggle">
+                  <input
+                    type="checkbox"
+                    [checked]="store()!.autoUpdate"
+                    (change)="toggleAutoUpdate($event)"
+                    [disabled]="isUpdatingAutoUpdate()"
+                  />
+                  <span>Actualizar automáticamente al lanzar nueva versión del template</span>
+                  @if (isUpdatingAutoUpdate()) {
+                    <app-spinner size="sm" />
+                  }
+                </label>
+
+                @if (!isStoreDev(store())) {
+                  <label class="deploy-toggle">
+                    <input
+                      type="checkbox"
+                      [checked]="store()!.allowTestDeployments === true"
+                      (change)="toggleAllowTestDeployments($event)"
+                      [disabled]="isUpdatingAllowTest()"
+                    />
+                    <span>Permitir despliegues de prueba (ramas / commits) en esta tienda</span>
+                    @if (isUpdatingAllowTest()) {
+                      <app-spinner size="sm" />
+                    }
+                  </label>
+                  <p class="deploy-hint deploy-hint--warning">
+                    <i class="bi bi-shield-exclamation"></i>
+                    Esta tienda no es de entorno <code>development</code>: por defecto sólo acepta
+                    releases etiquetadas. Habilitá el permiso únicamente en entornos controlados.
+                  </p>
+                }
+
+                <div class="source-picker">
                   <div
-                    class="deploy-mode-toggle mb-2"
-                    style="display: flex; gap: 0.5rem; align-items: center"
+                    class="source-picker__modes"
+                    role="tablist"
+                    aria-label="Tipo de fuente de despliegue"
                   >
-                    <button
-                      type="button"
-                      class="btn btn-sm"
-                      [class.btn-primary]="deployTargetType() === 'version'"
-                      [class.btn-outline-secondary]="deployTargetType() !== 'version'"
-                      (click)="deployTargetType.set('version')"
-                      [disabled]="
-                        isDeploying() ||
-                        isStoreUpdating() ||
-                        deployActionState().status === 'running'
-                      "
-                    >
-                      <i class="bi bi-tag"></i> Release / Versión
-                    </button>
-                    <button
-                      type="button"
-                      class="btn btn-sm"
-                      [class.btn-primary]="deployTargetType() === 'branch'"
-                      [class.btn-outline-secondary]="deployTargetType() !== 'branch'"
-                      (click)="deployTargetType.set('branch')"
-                      [disabled]="
-                        isDeploying() ||
-                        isStoreUpdating() ||
-                        deployActionState().status === 'running'
-                      "
-                    >
-                      <i class="bi bi-git"></i> Rama / Test (sin tag)
-                    </button>
+                    @for (kind of sourceKinds; track kind) {
+                      <button
+                        type="button"
+                        role="tab"
+                        class="source-mode"
+                        [class.source-mode--active]="deploySourceKind() === kind"
+                        [attr.aria-selected]="deploySourceKind() === kind"
+                        [disabled]="isModeDisabled(kind)"
+                        (click)="setDeploySourceKind(kind)"
+                      >
+                        <i
+                          class="bi"
+                          [class.bi-tag]="kind === 'release'"
+                          [class.bi-bezier2]="kind === 'branch'"
+                          [class.bi-hash]="kind === 'commit'"
+                        ></i>
+                        {{ sourceKindLabel(kind) }}
+                      </button>
+                    }
                   </div>
 
-                  @if (deployTargetType() === 'branch') {
-                    <div class="row g-2 align-items-center">
-                      <div class="col">
-                        <div class="input-group">
-                          <span class="input-group-text"><i class="bi bi-bezier2"></i></span>
-                          <input
-                            type="text"
-                            class="form-control"
-                            placeholder="Ej. develop, feat/mi-cambio"
-                            [value]="customBranchRef()"
-                            (input)="customBranchRef.set($any($event.target).value)"
-                            [disabled]="
-                              isDeploying() ||
-                              isStoreUpdating() ||
-                              deployActionState().status === 'running'
-                            "
-                          />
-                        </div>
-                        <small class="text-muted d-block mt-1">
-                          Despliega directamente el código de esta rama para pruebas sin crear una
-                          nueva release.
-                        </small>
-                      </div>
-                      <div class="col-auto">
-                        <button
-                          class="action-btn action-btn--primary"
-                          [disabled]="
-                            isDeploying() ||
-                            isStoreUpdating() ||
-                            store()!.status !== 'active' ||
-                            !customBranchRef().trim() ||
-                            deployActionState().status === 'running'
-                          "
-                          (click)="triggerDeployment()"
-                        >
-                          @if (
-                            isDeploying() ||
-                            isStoreUpdating() ||
-                            deployActionState().status === 'running'
-                          ) {
-                            <app-spinner size="sm" label="Desplegando…" />
-                          } @else {
-                            <i class="bi bi-play-circle"></i> Desplegar rama {{ customBranchRef() }}
+                  @if (deploySourceKind() === 'release') {
+                    @if (isLoadingVersions()) {
+                      <div class="skeleton skeleton-select"></div>
+                    } @else {
+                      <select
+                        class="form-select"
+                        [value]="deploySourceValue()"
+                        (change)="onReleaseChange($event)"
+                        [disabled]="isDeployBlocked() || availableVersions().length === 0"
+                        aria-label="Release a desplegar"
+                      >
+                        @if (availableVersions().length === 0) {
+                          <option [value]="deploySourceValue()">
+                            No se encontraron releases publicados
+                          </option>
+                        } @else {
+                          @for (v of availableVersions(); track v.version) {
+                            <option
+                              [value]="v.version"
+                              [disabled]="
+                                (v.schemaVersion ?? 0) !== 0 &&
+                                (v.schemaVersion ?? 0) < (store()!.schemaVersion ?? 0)
+                              "
+                            >
+                              v{{ v.version }}{{ v.isLatest ? ' (latest)' : '' }} —
+                              {{ v.publishedAt | date: 'dd/MM/yyyy' }}
+                              @if (
+                                (v.schemaVersion ?? 0) !== 0 &&
+                                (v.schemaVersion ?? 0) < (store()!.schemaVersion ?? 0)
+                              ) {
+                                (incompatible — esquema {{ store()!.schemaVersion }})
+                              } @else if ((v.schemaVersion ?? 0) > (store()!.schemaVersion ?? 0)) {
+                                (requiere migración)
+                              }
+                            </option>
                           }
-                        </button>
-                      </div>
-                    </div>
-                  } @else if (isLoadingVersions()) {
-                    <div class="row g-2 align-items-center">
-                      <div class="col">
-                        <div class="skeleton skeleton-select"></div>
-                      </div>
-                      <div class="col-auto">
-                        <div class="skeleton skeleton-btn"></div>
-                      </div>
+                        }
+                      </select>
+                    }
+                  } @else if (deploySourceKind() === 'branch') {
+                    @if (isLoadingBranches()) {
+                      <div class="skeleton skeleton-select"></div>
+                    } @else if (customBranchMode()) {
+                      <input
+                        type="text"
+                        class="form-control"
+                        placeholder="feat/mi-cambio"
+                        [value]="deploySourceValue()"
+                        (input)="setDeploySourceValue($any($event.target).value)"
+                        [disabled]="isDeployBlocked()"
+                        autocomplete="off"
+                        aria-label="Nombre de rama"
+                      />
+                    } @else {
+                      <select
+                        class="form-select"
+                        [value]="deploySourceValue()"
+                        (change)="onBranchChange($event)"
+                        [disabled]="isDeployBlocked() || branches().length === 0"
+                        aria-label="Rama a desplegar"
+                      >
+                        @if (branches().length === 0) {
+                          <option value="">No se encontraron ramas</option>
+                        } @else {
+                          @for (b of branches(); track b.name) {
+                            <option [value]="b.name">
+                              {{ b.name }}{{ b.isDefault ? ' (default)' : '' }} · {{ b.shortSha }}
+                            </option>
+                          }
+                        }
+                      </select>
+                    }
+                    <div class="source-picker__aux">
+                      <label class="deploy-toggle deploy-toggle--inline">
+                        <input
+                          type="checkbox"
+                          [checked]="customBranchMode()"
+                          (change)="toggleCustomBranchMode($any($event.target).checked)"
+                        />
+                        <span>Escribir otra rama</span>
+                      </label>
+                      <button
+                        type="button"
+                        class="btn-refresh"
+                        [disabled]="isLoadingBranches()"
+                        (click)="refreshVersions()"
+                      >
+                        <i class="bi bi-arrow-clockwise"></i> Actualizar
+                      </button>
                     </div>
                   } @else {
-                    <div class="row g-2 align-items-center">
-                      <div class="col">
-                        <select
-                          class="form-select"
-                          [value]="selectedVersion()"
-                          (change)="selectedVersion.set($any($event.target).value)"
-                          [disabled]="
-                            isDeploying() ||
-                            isStoreUpdating() ||
-                            availableVersions().length === 0 ||
-                            deployActionState().status === 'running'
-                          "
-                        >
-                          @if (availableVersions().length === 0) {
-                            <option [value]="selectedVersion()">
-                              No se encontraron releases publicados
-                            </option>
-                          } @else {
-                            @for (v of availableVersions(); track v.version) {
-                              <option
-                                [value]="v.version"
-                                [disabled]="
-                                  (v.schemaVersion ?? 0) !== 0 &&
-                                  (v.schemaVersion ?? 0) < (store()!.schemaVersion ?? 0)
-                                "
-                              >
-                                v{{ v.version }}{{ v.isLatest ? ' (latest)' : '' }} —
-                                {{ v.publishedAt | date: 'dd/MM/yyyy' }}
-                                @if (
-                                  (v.schemaVersion ?? 0) !== 0 &&
-                                  (v.schemaVersion ?? 0) < (store()!.schemaVersion ?? 0)
-                                ) {
-                                  (incompatible — esquema {{ store()!.schemaVersion }})
-                                } @else if (
-                                  (v.schemaVersion ?? 0) > (store()!.schemaVersion ?? 0)
-                                ) {
-                                  (requiere migración)
-                                }
-                              </option>
-                            }
-                          }
-                        </select>
-                      </div>
-                      <div class="col-auto">
-                        <button
-                          class="action-btn action-btn--primary"
-                          [disabled]="
-                            isDeploying() ||
-                            isStoreUpdating() ||
-                            store()!.status !== 'active' ||
-                            deployActionState().status === 'running'
-                          "
-                          (click)="triggerDeployment()"
-                        >
-                          @if (
-                            isDeploying() ||
-                            isStoreUpdating() ||
-                            deployActionState().status === 'running'
-                          ) {
-                            <app-spinner size="sm" label="Desplegando…" />
-                          } @else if (selectedVersion() === store()!.templateVersion) {
-                            <i class="bi bi-arrow-repeat"></i> Re-desplegar v{{ selectedVersion() }}
-                          } @else {
-                            <i class="bi bi-rocket-takeoff"></i> Actualizar a v{{
-                              selectedVersion()
-                            }}
-                          }
-                        </button>
-                      </div>
-                    </div>
+                    <input
+                      type="text"
+                      class="form-control"
+                      placeholder="a1b2c3d"
+                      [value]="deploySourceValue()"
+                      (input)="setDeploySourceValue($any($event.target).value)"
+                      [disabled]="isDeployBlocked()"
+                      autocomplete="off"
+                      aria-label="SHA del commit"
+                    />
                   }
 
+                  @if (deploySourceKind() === 'branch' && branchesError()) {
+                    <p class="feedback feedback--error">{{ branchesError() }}</p>
+                  } @else if (deploySourceValue() && deploySourceError()) {
+                    <p class="feedback feedback--error">{{ deploySourceError() }}</p>
+                  } @else {
+                    <p class="deploy-hint">{{ deploySourceHint() }}</p>
+                  }
+
+                  <div class="deploy-actions">
+                    <button
+                      type="button"
+                      class="action-btn action-btn--primary"
+                      [disabled]="
+                        isDeployBlocked() || !!deploySourceError() || !deploySourceValue()
+                      "
+                      (click)="triggerDeployment()"
+                    >
+                      @if (deployActionState().status === 'running') {
+                        <app-spinner size="sm" label="Desplegando…" />
+                      } @else {
+                        <i class="bi bi-rocket-takeoff"></i> {{ deployActionLabel() }}
+                      }
+                    </button>
+                    @if (isRunningTestBuild()) {
+                      <button
+                        type="button"
+                        class="action-btn"
+                        [disabled]="isDeployBlocked()"
+                        (click)="redeployStable()"
+                      >
+                        <i class="bi bi-tag"></i> Volver a release estable v{{
+                          store()!.templateVersion || '0.9.4'
+                        }}
+                      </button>
+                    }
+                  </div>
+
                   @if (store()!.pendingMigration) {
-                    <p class="feedback feedback--warning mt-2">
+                    <p class="feedback feedback--warning">
                       ⚠️ La versión aplicada cambia el esquema de datos — revisá que los datos sean
                       compatibles tras el deploy.
                     </p>
                   }
 
                   @if (deployActionState().status !== 'idle') {
-                    <div
-                      class="action-progress action-progress--{{ deployActionState().status }} mt-3"
-                    >
+                    <div class="action-progress action-progress--{{ deployActionState().status }}">
                       <div class="action-progress__bar">
                         <div
                           class="action-progress__fill"
@@ -612,26 +648,73 @@
                       </div>
                       <div class="action-progress__info">
                         @if (deployActionState().status === 'running') {
-                          <span class="spinner-sm"></span>
+                          <app-spinner size="sm" />
                         } @else if (deployActionState().status === 'success') {
-                          <i class="bi bi-check-circle-fill text-success"></i>
+                          <i class="bi bi-check-circle-fill action-progress__icon--success"></i>
                         } @else if (deployActionState().status === 'error') {
-                          <i class="bi bi-x-circle-fill text-danger"></i>
+                          <i class="bi bi-x-circle-fill action-progress__icon--error"></i>
                         }
                         <span class="action-progress__text">{{ deployActionState().message }}</span>
                         @if (deployActionState().status !== 'running') {
                           <button
                             type="button"
-                            class="btn-close btn-close-white btn-sm ms-2"
+                            class="action-progress__dismiss"
                             aria-label="Cerrar notificación"
                             (click)="dismissDeployProgress()"
-                          ></button>
+                          >
+                            <i class="bi bi-x-lg"></i>
+                          </button>
                         }
                       </div>
                     </div>
                   }
                 </div>
               </div>
+
+              @if (pendingDeploy(); as pending) {
+                <div class="modal-overlay" (click)="cancelPendingDeploy()">
+                  <div
+                    class="modal glass-modal"
+                    role="dialog"
+                    aria-modal="true"
+                    (click)="$event.stopPropagation()"
+                  >
+                    <h3 class="modal__title">
+                      <i class="bi bi-exclamation-triangle-fill text-warning"></i>
+                      Desplegar {{ pending.request.kind === 'branch' ? 'la rama' : 'el commit' }}
+                      <code>{{ pending.request.value }}</code>
+                    </h3>
+                    <p class="modal__body">
+                      Se va a compilar y publicar el storefront de
+                      <strong>{{ store()!.name }}</strong>
+                      desde {{ pending.request.kind === 'branch' ? 'la rama' : 'el commit' }}
+                      <code>{{ pending.request.value }}</code
+                      >.
+                    </p>
+                    <p class="feedback feedback--warning">
+                      Esto no proviene de una release etiquetada: el sitio público pasará a mostrar
+                      este código. La release estable v{{ store()!.templateVersion || '0.9.4' }}
+                      sigue disponible para volver cuando quieras.
+                    </p>
+                    <div class="modal__actions">
+                      <button
+                        type="button"
+                        class="btn btn-secondary"
+                        (click)="cancelPendingDeploy()"
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        type="button"
+                        class="btn btn-primary"
+                        (click)="confirmPendingDeploy()"
+                      >
+                        <i class="bi bi-play-circle"></i> Confirmar despliegue
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              }
             }
 
             <!-- Operations Card -->
@@ -700,6 +783,7 @@
                   <div class="op-control-card__footer">
                     @if (store()!.status === 'active') {
                       <button
+                        type="button"
                         class="btn btn-outline-warning op-control-card__btn"
                         [disabled]="isSuspending()"
                         (click)="showSleepConfirm.set(true)"
@@ -709,6 +793,7 @@
                     }
                     @if (store()!.status === 'suspended') {
                       <button
+                        type="button"
                         class="btn btn-success op-control-card__btn"
                         [disabled]="isActivating()"
                         (click)="activate()"
@@ -745,6 +830,7 @@
 
                     <div class="op-control-card__footer">
                       <button
+                        type="button"
                         class="btn btn-outline-danger op-control-card__btn"
                         [disabled]="isDeleting()"
                         (click)="showDeleteConfirm.set(true)"
@@ -815,15 +901,7 @@
                   <h2 class="detail-card__title">
                     <i class="bi bi-person-plus"></i> Invitar Staff
                   </h2>
-                  <p
-                    class="form-hint"
-                    style="
-                      margin-bottom: 1rem;
-                      text-transform: none;
-                      font-weight: normal;
-                      letter-spacing: normal;
-                    "
-                  >
+                  <p class="form-hint sd-deploy-hint">
                     La invitación inyecta Custom Claims en Firebase Auth del subproyecto y
                     sincroniza el perfil del usuario.
                   </p>
@@ -854,9 +932,8 @@
 
                     <button
                       type="submit"
-                      class="btn btn-primary"
+                      class="btn btn-primary sd-invite-submit"
                       [disabled]="isInvitingStaff()"
-                      style="margin-top: 1rem"
                     >
                       @if (isInvitingStaff()) {
                         <span class="spinner-sm"></span> Enviando invitación…
@@ -875,7 +952,7 @@
 
                   <div class="staff-list">
                     @if (staff().length === 0) {
-                      <div class="deployment-empty" style="padding: 2rem 0">
+                      <div class="deployment-empty sd-deployment-empty">
                         <i class="bi bi-people-mute"></i>
                         <p>No se encontraron miembros activos adicionales.</p>
                       </div>
@@ -940,16 +1017,14 @@
                 </div>
 
                 <!-- Pending Invitations Card -->
-                <div class="detail-card detail-card--full" style="margin-top: 1rem">
+                <div class="detail-card detail-card--full sd-deploy-history-card">
                   <h2 class="detail-card__title">
                     <i class="bi bi-envelope-open"></i> Invitaciones Enviadas
                   </h2>
 
                   <div class="invitations-list">
                     @if (invitations().length === 0) {
-                      <p class="text-muted" style="font-size: 0.9rem; padding: 1rem 0">
-                        No hay invitaciones enviadas.
-                      </p>
+                      <p class="text-muted sd-deployments-loading">No hay invitaciones enviadas.</p>
                     } @else {
                       <div class="table-responsive">
                         <table class="deployment-table">
@@ -965,7 +1040,7 @@
                           <tbody>
                             @for (invite of invitations(); track invite.id) {
                               <tr class="deployment-row">
-                                <td class="deployment-title" style="font-weight: 500">
+                                <td class="deployment-title sd-deployment-title">
                                   {{ invite.email }}
                                 </td>
                                 <td>
@@ -1042,11 +1117,11 @@
                 <div class="skeleton skeleton--card-title"></div>
                 <div class="skeleton skeleton--text mb-4 mt-2"></div>
                 <div class="skeleton-history-table mt-3">
-                  <div class="skeleton skeleton--text mb-3" style="height: 38px"></div>
-                  <div class="skeleton skeleton--text mb-2" style="height: 48px"></div>
-                  <div class="skeleton skeleton--text mb-2" style="height: 48px"></div>
-                  <div class="skeleton skeleton--text mb-2" style="height: 48px"></div>
-                  <div class="skeleton skeleton--text mb-2" style="height: 48px"></div>
+                  <div class="skeleton--h-38 skeleton skeleton--text mb-3"></div>
+                  <div class="skeleton--h-48 skeleton skeleton--text mb-2"></div>
+                  <div class="skeleton--h-48 skeleton skeleton--text mb-2"></div>
+                  <div class="skeleton--h-48 skeleton skeleton--text mb-2"></div>
+                  <div class="skeleton--h-48 skeleton skeleton--text mb-2"></div>
                 </div>
               </div>
             } @else {
@@ -1054,19 +1129,12 @@
                 <h2 class="detail-card__title">
                   <i class="bi bi-clock-history"></i> Historial de Despliegues
                 </h2>
-                <p
-                  style="
-                    font-size: 0.85rem;
-                    color: var(--platform-text-secondary);
-                    margin-bottom: 1.25rem;
-                    line-height: 1.5;
-                  "
-                >
+                <p class="sd-deploy-history-intro">
                   Publicaciones ejecutadas por GitHub Actions en Firebase Hosting (versión, rama y
                   commit por fila).
                   <button
-                    class="btn btn-secondary btn--sm ms-2"
-                    style="float: right"
+                    type="button"
+                    class="btn btn-secondary btn--sm ms-2 sd-refresh-history"
                     (click)="refreshDeployHistory()"
                     title="Recargar historial"
                   >
@@ -1075,18 +1143,9 @@
                 </p>
 
                 @if (deployHistory().length === 0) {
-                  <div class="empty-state" style="padding: 2rem 0; text-align: center">
-                    <i
-                      class="bi bi-inbox"
-                      style="font-size: 2rem; color: var(--platform-text-secondary); opacity: 0.5"
-                    ></i>
-                    <p
-                      style="
-                        margin-top: 0.75rem;
-                        color: var(--platform-text-secondary);
-                        font-size: 0.9rem;
-                      "
-                    >
+                  <div class="empty-state sd-empty-compact">
+                    <i class="bi bi-inbox sd-empty-icon"></i>
+                    <p class="sd-deploy-history-empty">
                       Aún no hay despliegues registrados para esta tienda.
                     </p>
                   </div>
@@ -1097,8 +1156,9 @@
                         <tr>
                           <th>Fecha</th>
                           <th>Estado</th>
+                          <th>Origen</th>
                           <th>Versión</th>
-                          <th>Rama</th>
+                          <th>Ref</th>
                           <th>Commit</th>
                           <th>Mensaje</th>
                         </tr>
@@ -1120,6 +1180,15 @@
                                 [class.badge--danger]="!deploy.success"
                               >
                                 {{ deploy.success ? 'Éxito' : 'Error' }}
+                              </span>
+                            </td>
+                            <td>
+                              <span
+                                class="badge"
+                                [class.badge--success]="historySourceKind(deploy) === 'release'"
+                                [class.badge--warning]="historySourceKind(deploy) !== 'release'"
+                              >
+                                {{ historySourceLabel(deploy) }}
                               </span>
                             </td>
                             <td>
@@ -1326,11 +1395,11 @@
               @if (logsLoading() && logsEntries().length === 0) {
                 <div class="detail-card detail-card--skeleton" aria-busy="true">
                   <div class="skeleton skeleton--text mb-2"></div>
-                  <div class="skeleton skeleton--text mb-2" style="width: 70%"></div>
-                  <div class="skeleton skeleton--text" style="width: 45%"></div>
+                  <div class="skeleton--w-70 skeleton skeleton--text mb-2"></div>
+                  <div class="skeleton--w-45 skeleton skeleton--text"></div>
                 </div>
               } @else if (logsEntries().length === 0 && !logsLoading() && !logsError()) {
-                <div class="empty-state" style="padding: 3rem 1.5rem; text-align: center">
+                <div class="empty-state sd-empty-roomy">
                   <i class="bi bi-journal-check fs-1 text-muted d-block mb-2"></i>
                   <h4 class="h6 mb-1 text-muted">No se registraron eventos en este período</h4>
                   <p class="mb-0 text-muted small">
@@ -1422,6 +1491,7 @@
                             type="button"
                             class="btn btn-secondary btn--sm"
                             title="Copiar contenido"
+                            aria-label="Copiar contenido"
                             (click)="copyLogPayload(entry.message || entry.raw || '')"
                           >
                             <i class="bi bi-clipboard"></i>
@@ -1507,7 +1577,7 @@
             </div>
           </div>
           @if (saveError()) {
-            <p class="action-error" style="margin: 0.75rem 0 0">{{ saveError() }}</p>
+            <p class="action-error sd-action-error-flush">{{ saveError() }}</p>
           }
           <div class="modal__actions">
             <button type="button" class="btn btn-secondary" (click)="showEditModal.set(false)">
@@ -1535,7 +1605,7 @@
           La tienda <strong>{{ store()!.name }}</strong> quedará suspendida y
           <strong>no recibirá más deploys</strong> hasta que la reactives.
         </p>
-        <div class="form-group" style="margin: 1rem 0">
+        <div class="form-group sd-form-extra">
           <label class="form-label">
             Escribí <code>{{ store()!.firebaseProjectId }}</code> para confirmar:
           </label>
@@ -1548,12 +1618,14 @@
         </div>
         <div class="modal__actions">
           <button
+            type="button"
             class="btn btn-secondary"
             (click)="showSleepConfirm.set(false); sleepConfirmInput = ''"
           >
             Cancelar
           </button>
           <button
+            type="button"
             class="btn btn-warning"
             [disabled]="isSuspending() || sleepConfirmInput !== store()!.firebaseProjectId"
             (click)="suspend()"
@@ -1579,7 +1651,7 @@
           Esta acción <strong>no se puede deshacer</strong>: se borran Firestore, Auth, Storage y
           Hosting.
         </p>
-        <div class="form-group" style="margin: 1rem 0">
+        <div class="form-group sd-form-extra">
           <label class="form-label">
             Escribí <code>{{ store()!.slug }}</code> para confirmar:
           </label>
@@ -1592,12 +1664,14 @@
         </div>
         <div class="modal__actions">
           <button
+            type="button"
             class="btn btn-secondary"
             (click)="showDeleteConfirm.set(false); deleteConfirmInput = ''"
           >
             Cancelar
           </button>
           <button
+            type="button"
             class="btn btn-danger"
             [disabled]="isDeleting() || deleteConfirmInput !== store()!.slug"
             (click)="deleteStore()"
@@ -1707,7 +1781,7 @@
       <a routerLink="/stores">← Volver a tiendas</a>
     </div>
     <div class="detail-card text-center py-5">
-      <i class="bi bi-exclamation-triangle text-warning" style="font-size: 2.5rem"></i>
+      <i class="bi bi-exclamation-triangle text-warning sd-error-icon"></i>
       <h3 class="mt-3 text-white">Tienda no encontrada</h3>
       <p class="text-muted">
         No se encontró ninguna tienda con el identificador solicitado o fue eliminada.

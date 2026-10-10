@@ -29,6 +29,8 @@ export interface DeploymentHistoryItem {
   ref?: string;
   commitSha?: string;
   commitMessage?: string;
+  /** `release` | `branch` | `commit` — procedencia real del build. */
+  sourceKind?: string;
 }
 
 export function parseDateToMillis(dateVal: unknown): number {
@@ -119,6 +121,20 @@ export function formatDeployHistoryUtil(
     }
     return item;
   });
+}
+
+/**
+ * Procedencia del build en el historial de despliegues.
+ * Los registros previos a la fuente de despliegue no tienen `sourceKind`: se asumen release.
+ */
+export function deployHistorySourceKind(item: DeploymentHistoryItem): string {
+  return item.sourceKind || 'release';
+}
+
+/** Etiqueta legible de la procedencia del build en el historial. */
+export function deployHistorySourceLabel(item: DeploymentHistoryItem): string {
+  const labels: Record<string, string> = { release: 'Release', branch: 'Rama', commit: 'Commit' };
+  return labels[deployHistorySourceKind(item)] ?? 'Release';
 }
 
 export function isVersionOutdated(currentVer?: string, latestVer?: string): boolean {

@@ -1,3 +1,4 @@
+@use '../../../../../styles/mixins' as *;
 .modal-backdrop {
   position: fixed;
   inset: 0;
@@ -224,4 +225,32 @@
   margin-top: 1.25rem;
   display: flex;
   justify-content: flex-end;
+}
+
+/* ═══ Responsive (H-09) ═══════════════════════════════════════════════════
+   El modal tenía ancho fijo (620 px) y filas que no envolvían. */
+@include until(md) {
+  .modal-card {
+    width: calc(100% - 2rem);
+    max-width: 620px;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+
+  .modal-card__header,
+  .modal-card__footer {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .copy-row,
+  .check-item,
+  .issue__title,
+  .fix-item {
+    flex-wrap: wrap;
+  }
+
+  .checklist-grid {
+    grid-template-columns: 1fr;
+  }
 }

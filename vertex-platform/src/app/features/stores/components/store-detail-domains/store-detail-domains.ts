@@ -13,7 +13,7 @@ import { StoreDetailOrchestrationService } from '../store-detail/services/store-
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [FormsModule],
   templateUrl: './store-detail-domains.html',
-  styleUrl: '../store-detail/store-detail.scss',
+  styleUrls: ['../store-detail/store-detail.scss', './store-detail-domains.scss'],
 })
 export class StoreDetailDomains {
   readonly store = input<Store | null>(null);

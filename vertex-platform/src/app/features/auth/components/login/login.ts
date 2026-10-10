@@ -37,13 +37,13 @@ import { AuthService } from '@core/services/auth';
                 <div>
                   Error al iniciar sesión. Intentá de nuevo.
                   @if (auth.authErrorCode()) {
-                    <br /><small style="opacity:0.7">{{ auth.authErrorCode() }}</small>
+                    <br /><small class="login-error-code">{{ auth.authErrorCode() }}</small>
                   }
                 </div>
               </div>
             }
 
-            <button class="btn-google" (click)="login()">
+            <button type="button" class="btn-google" (click)="login()">
               <svg width="18" height="18" viewBox="0 0 48 48">
                 <path
                   fill="#EA4335"
@@ -184,6 +184,11 @@ import { AuthService } from '@core/services/auth';
           transform: translateY(-1px);
           box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
         }
+      }
+
+      /* Código de error de autenticación (antes un style inline con opacity). */
+      .login-error-code {
+        opacity: 0.7;
       }
     `,
   ],

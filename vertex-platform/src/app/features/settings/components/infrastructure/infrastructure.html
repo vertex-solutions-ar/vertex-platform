@@ -106,9 +106,9 @@
     <div class="guidance-banner guidance-banner--skeleton">
       <div class="guidance-banner__icon-box skeleton skeleton--icon-box"></div>
       <div class="guidance-banner__content flex-1">
-        <div class="skeleton" style="width: 140px; height: 16px; margin-bottom: 8px"></div>
-        <div class="skeleton" style="width: 280px; height: 22px; margin-bottom: 6px"></div>
-        <div class="skeleton" style="width: 220px; height: 14px"></div>
+        <div class="skeleton--w-140 skeleton--h-16 skeleton--mb-8 skeleton"></div>
+        <div class="skeleton--w-280 skeleton--h-22 skeleton--mb-6 skeleton"></div>
+        <div class="skeleton--w-220 skeleton--h-14 skeleton"></div>
       </div>
     </div>
   } @else if (isCriticalGcp()) {
@@ -201,12 +201,17 @@
 
   <!-- Action Bar -->
   <div class="action-bar">
-    <button class="btn btn-primary" (click)="openAddAccount()">
+    <button type="button" class="btn btn-primary" (click)="openAddAccount()">
       <i class="bi bi-plus-lg"></i>
       <span>Vincular Cuenta GCP</span>
     </button>
 
-    <button class="btn btn-secondary" (click)="syncAccounts()" [disabled]="svc.isSyncing()">
+    <button
+      type="button"
+      class="btn btn-secondary"
+      (click)="syncAccounts()"
+      [disabled]="svc.isSyncing()"
+    >
       <i class="bi bi-arrow-repeat" [class.spin]="svc.isSyncing()"></i>
       <span>{{ svc.isSyncing() ? 'Sincronizando…' : 'Sincronizar con GCP' }}</span>
     </button>
@@ -228,9 +233,9 @@
     <div class="kpi-grid">
       @for (_ of [1, 2, 3, 4]; track $index) {
         <div class="kpi-card kpi-card--skeleton">
-          <div class="skeleton" style="width: 100px; height: 12px; margin-bottom: 6px"></div>
-          <div class="skeleton" style="width: 140px; height: 26px; margin-bottom: 6px"></div>
-          <div class="skeleton" style="width: 120px; height: 12px"></div>
+          <div class="skeleton--w-100 skeleton--h-12 skeleton--mb-6 skeleton"></div>
+          <div class="skeleton--w-140 skeleton--h-26 skeleton--mb-6 skeleton"></div>
+          <div class="skeleton--w-120 skeleton--h-12 skeleton"></div>
         </div>
       }
     </div>
@@ -273,7 +278,13 @@
           <i class="bi bi-credit-card-2-front-fill"></i>
           <span>Vincular Nueva Cuenta de Facturación GCP</span>
         </div>
-        <button class="btn-icon" (click)="cancelAddAccount()" title="Cerrar">
+        <button
+          type="button"
+          class="btn-icon"
+          (click)="cancelAddAccount()"
+          title="Cerrar"
+          aria-label="Cerrar"
+        >
           <i class="bi bi-x-lg"></i>
         </button>
       </div>
@@ -315,10 +326,20 @@
           />
         </div>
         <div class="form-actions">
-          <button class="btn btn-secondary" (click)="cancelAddAccount()" [disabled]="isAdding()">
+          <button
+            type="button"
+            class="btn btn-secondary"
+            (click)="cancelAddAccount()"
+            [disabled]="isAdding()"
+          >
             Cancelar
           </button>
-          <button class="btn btn-primary" (click)="addAccount()" [disabled]="isAdding()">
+          <button
+            type="button"
+            class="btn btn-primary"
+            (click)="addAccount()"
+            [disabled]="isAdding()"
+          >
             <i
               class="bi"
               [class.bi-check-lg]="!isAdding()"
@@ -342,6 +363,7 @@
   <!-- Tab Navigation -->
   <div class="tab-nav">
     <button
+      type="button"
       class="tab-btn"
       [class.tab-btn--active]="activeTab() === 'shards'"
       (click)="activeTab.set('shards')"
@@ -351,6 +373,7 @@
       <span class="tab-badge">{{ sortedShards().length || 16 }}</span>
     </button>
     <button
+      type="button"
       class="tab-btn"
       [class.tab-btn--active]="activeTab() === 'accounts'"
       (click)="activeTab.set('accounts')"
@@ -360,6 +383,7 @@
       <span class="tab-badge">{{ svc.accounts().length }}</span>
     </button>
     <button
+      type="button"
       class="tab-btn"
       [class.tab-btn--active]="activeTab() === 'guide'"
       (click)="activeTab.set('guide')"
@@ -391,6 +415,7 @@
             />
           </div>
           <button
+            type="button"
             class="btn btn-secondary btn--sm"
             (click)="loadReadiness()"
             [disabled]="isCheckingShards()"
@@ -416,9 +441,13 @@
               <div class="shard-card__title-row">
                 <span class="shard-card__id" [title]="shard.id">{{ shard.id }}</span>
                 <button
+                  type="button"
                   class="btn-icon-xs"
                   (click)="copyToClipboard(shard.id)"
                   [title]="copiedId() === shard.id ? '¡Copiado!' : 'Copiar ID'"
+                  [attr.aria-label]="
+                    copiedId() === shard.id ? 'ID copiado' : 'Copiar ID del shard ' + shard.id
+                  "
                 >
                   <i
                     class="bi"
@@ -476,7 +505,11 @@
                 ></i>
                 <span>{{ shard.ready ? 'Configuración OK' : 'Atención Requerida' }}</span>
               </div>
-              <button class="btn btn-secondary btn--xs" (click)="openShardModal(shard)">
+              <button
+                type="button"
+                class="btn btn-secondary btn--xs"
+                (click)="openShardModal(shard)"
+              >
                 Detalle
               </button>
             </div>
@@ -510,7 +543,7 @@
           <p>
             Vincula una cuenta de facturación de Google Cloud para comenzar a aprovisionar tiendas.
           </p>
-          <button class="btn btn-primary" (click)="openAddAccount()">
+          <button type="button" class="btn btn-primary" (click)="openAddAccount()">
             <i class="bi bi-plus-lg"></i>
             <span>Vincular Primera Cuenta</span>
           </button>
@@ -525,7 +558,11 @@
                   <span class="account-card__id">{{ acc.id }}</span>
                 </div>
                 <div class="account-card__actions">
-                  <button class="btn btn-secondary btn--sm" (click)="toggleAccountStatus(acc)">
+                  <button
+                    type="button"
+                    class="btn btn-secondary btn--sm"
+                    (click)="toggleAccountStatus(acc)"
+                  >
                     {{ acc.active ? 'Marcar Completa' : 'Marcar Activa' }}
                   </button>
                 </div>

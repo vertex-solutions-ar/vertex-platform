@@ -1,3 +1,4 @@
+@use '../../../../../styles/mixins' as *;
 .success-layout {
   min-height: 100vh;
   background-color: #0b0f19;
@@ -200,5 +201,31 @@
   100% {
     transform: scale(0.95);
     opacity: 0;
+  }
+}
+/* ═══ Responsive (H-09) ═══════════════════════════════════════════════════ */
+@include until(md) {
+  .success-card {
+    width: calc(100% - 2rem);
+    max-width: 580px;
+  }
+
+  .action-buttons,
+  .support-footer,
+  .store-summary-box {
+    flex-wrap: wrap;
+    gap: 0.6rem;
+  }
+}
+
+@include until(sm) {
+  .action-buttons .btn,
+  .action-buttons a {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .success-icon-wrapper {
+    margin-bottom: 1rem;
   }
 }
