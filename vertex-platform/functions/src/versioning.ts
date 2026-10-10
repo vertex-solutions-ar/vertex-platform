@@ -11,6 +11,7 @@ import {
 } from './helpers';
 import { resolvePlatformEnvironment } from './runtime';
 import { verifyGitHubOidcToken } from './github-oidc';
+import { STOREFRONT_REPO } from './deployment-source';
 
 interface GitHubRelease {
   tag_name: string;
@@ -64,6 +65,7 @@ const CACHE_TTL_MS = 60 * 1000; // 60s TTL
 
 export function _clearTemplateVersionsCache(): void {
   cachedReleasesList = null;
+  cachedRefs = null;
 }
 
 export const listTemplateVersions = onCall<{ forceRefresh?: boolean }>(
@@ -135,6 +137,121 @@ export const listTemplateVersions = onCall<{ forceRefresh?: boolean }>(
         return { versions: cachedReleasesList.versions };
       }
       return { versions: [] };
+    }
+  },
+);
+
+interface GitHubBranch {
+  name: string;
+  commit?: { sha?: string };
+}
+
+/** Rama del repositorio de storefront, lista para poblar el selector del panel. */
+export interface TemplateBranch {
+  name: string;
+  sha: string;
+  shortSha: string;
+  isDefault: boolean;
+}
+
+export interface TemplateRefs {
+  defaultBranch: string;
+  branches: TemplateBranch[];
+  releases: TemplateVersion[];
+}
+
+let cachedRefs: { timestamp: number; refs: TemplateRefs } | null = null;
+
+/**
+ * Lista las ramas y releases disponibles del repositorio storefront.
+ *
+ * Existe para que el selector de fuente de despliegue ofrezca refs reales en vez de un
+ * input de texto libre: un typo se convertía en un deploy fallido y la tienda quedaba
+ * en `deploying` hasta el timeout.
+ */
+export const listTemplateRefs = onCall<{ forceRefresh?: boolean }>(
+  { cors: ALLOWED_ORIGINS, invoker: 'public' },
+  async (request) => {
+    if (!request.auth?.token['platformAdmin']) {
+      throw new HttpsError('permission-denied', 'Only platform admins can list template refs.');
+    }
+
+    const forceRefresh = Boolean(request.data?.forceRefresh);
+    const now = Date.now();
+    if (!forceRefresh && cachedRefs && now - cachedRefs.timestamp < CACHE_TTL_MS) {
+      return cachedRefs.refs;
+    }
+
+    const pat = await getGitHubPat();
+    const headers = {
+      Authorization: `Bearer ${pat}`,
+      Accept: 'application/vnd.github+json',
+      'X-GitHub-Api-Version': '2022-11-28',
+    };
+
+    try {
+      const [repoRes, branchesRes, releasesRes] = await Promise.all([
+        fetch(`https://api.github.com/repos/${STOREFRONT_REPO}`, { headers }),
+        fetch(`https://api.github.com/repos/${STOREFRONT_REPO}/branches?per_page=100`, { headers }),
+        fetch(`https://api.github.com/repos/${STOREFRONT_REPO}/releases?per_page=20`, { headers }),
+      ]);
+
+      if (!repoRes.ok || !branchesRes.ok) {
+        throw new Error(
+          `GitHub refs API failed: repo=${repoRes.status} branches=${branchesRes.status}`,
+        );
+      }
+
+      const repo = (await repoRes.json()) as { default_branch?: string };
+      const defaultBranch = repo.default_branch || 'main';
+
+      const rawBranches = (await branchesRes.json()) as GitHubBranch[];
+      const branches: TemplateBranch[] = rawBranches
+        .filter((b) => b?.name && b.commit?.sha)
+        .map((b) => ({
+          name: b.name,
+          sha: b.commit!.sha!,
+          shortSha: b.commit!.sha!.substring(0, 7),
+          isDefault: b.name === defaultBranch,
+        }))
+        .sort((a, b) => {
+          if (a.isDefault !== b.isDefault) return a.isDefault ? -1 : 1;
+          if (a.name === 'develop') return -1;
+          if (b.name === 'develop') return 1;
+          return a.name.localeCompare(b.name);
+        });
+
+      let releases: TemplateVersion[] = [];
+      if (releasesRes.ok) {
+        const rawReleases = (await releasesRes.json()) as GitHubRelease[];
+        releases = rawReleases
+          .filter((r) => !r.draft && !r.prerelease)
+          .map((r) => {
+            const relVersion = r.tag_name.replace(/^v/, '');
+            return {
+              version: relVersion,
+              tag: r.tag_name,
+              publishedAt: r.published_at,
+              isLatest: false,
+              notes: r.body ?? undefined,
+              schemaVersion: SCHEMA_BY_VERSION[relVersion] ?? 0,
+            };
+          })
+          .sort((a, b) => compareVersions(b.version, a.version));
+        if (releases.length > 0) {
+          releases[0] = { ...releases[0], isLatest: true };
+        }
+      }
+
+      const refs: TemplateRefs = { defaultBranch, branches, releases };
+      cachedRefs = { timestamp: now, refs };
+      return refs;
+    } catch (err) {
+      console.warn('[listTemplateRefs] Failed to fetch refs:', err);
+      if (cachedRefs) {
+        return cachedRefs.refs;
+      }
+      throw new HttpsError('unavailable', 'No se pudieron listar las ramas del repositorio.');
     }
   },
 );
@@ -305,6 +422,19 @@ export const updateStoreVersion = onCall<{ storeId: string; version: string }>(
         updatedAt: new Date().toISOString(),
       },
       pendingMigration: needsMigration ? true : null,
+      // Fuente de despliegue explícita: un cambio de versión siempre es una release.
+      deploySource: {
+        kind: 'release',
+        ref: `v${version}`,
+        gitRef: `refs/tags/v${version}`,
+        commitSha: '',
+        commitMessage: '',
+        commitDate: '',
+        status: 'pending',
+        error: null,
+        requestedAt: new Date(),
+        requestedBy: request.auth?.uid || '',
+      },
       updatedAt: new Date(),
     });
 
@@ -354,9 +484,24 @@ export const completeVersionUpdate = onCall<{
   commitSha?: string;
   commitMessage?: string;
   ref?: string;
+  /** Procedencia real del build (rama/tag/commit compilado). Ver deployment-source.ts. */
+  sourceKind?: string;
+  sourceRef?: string;
+  sourceSha?: string;
 }>({ cors: ALLOWED_ORIGINS, invoker: 'public' }, async (request) => {
-  const { storeId, success, deployToken, idToken, version, commitSha, commitMessage, ref } =
-    request.data;
+  const {
+    storeId,
+    success,
+    deployToken,
+    idToken,
+    version,
+    commitSha,
+    commitMessage,
+    ref,
+    sourceKind,
+    sourceRef,
+    sourceSha,
+  } = request.data;
 
   if (!storeId) {
     throw new HttpsError('invalid-argument', 'storeId is required.');
@@ -397,9 +542,10 @@ export const completeVersionUpdate = onCall<{
     storeId,
     success,
     version: cleanVer,
-    commitSha: commitSha || '',
+    commitSha: sourceSha || commitSha || '',
     commitMessage: commitMessage || '',
-    ref: ref || '',
+    ref: sourceRef || ref || '',
+    sourceKind: sourceKind || 'release',
     error: success ? null : 'Storefront deployment failed. Check GitHub Action logs for details.',
   });
 
@@ -416,6 +562,19 @@ export const completeVersionUpdate = onCall<{
       redeployError: null,
       pendingMigration: null,
       lastDeployedAt: new Date(),
+      deploySource: {
+        kind: 'release',
+        ref: `v${cleanVer}`,
+        gitRef: `refs/tags/v${cleanVer}`,
+        commitSha: commitSha || '',
+        commitMessage: commitMessage || '',
+        commitDate: '',
+        status: 'ok',
+        error: null,
+        requestedAt: new Date(),
+        requestedBy: '',
+      },
+      ...(commitSha ? { lastDeployedCommit: commitSha } : {}),
       updatedAt: new Date(),
     });
   } else {
@@ -423,6 +582,8 @@ export const completeVersionUpdate = onCall<{
       versionUpdateStatus: 'failed',
       redeployStatus: 'failed',
       redeployError: 'El despliegue de actualización de plantilla falló.',
+      'deploySource.status': 'failed',
+      'deploySource.error': 'El despliegue de actualización de plantilla falló.',
       updatedAt: new Date(),
     });
   }

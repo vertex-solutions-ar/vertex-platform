@@ -3745,9 +3745,24 @@ export const completeStoreDeployment = onCall<{
   commitMessage?: string;
   ref?: string;
   version?: string;
+  /** Procedencia real del build (rama/tag/commit compilado). Ver deployment-source.ts. */
+  sourceKind?: string;
+  sourceRef?: string;
+  sourceSha?: string;
 }>({ cors: ALLOWED_ORIGINS, invoker: 'public' }, async (request) => {
-  const { storeId, success, deployToken, idToken, commitSha, commitMessage, ref, version } =
-    request.data;
+  const {
+    storeId,
+    success,
+    deployToken,
+    idToken,
+    commitSha,
+    commitMessage,
+    ref,
+    version,
+    sourceKind,
+    sourceRef,
+    sourceSha,
+  } = request.data;
 
   if (!storeId) {
     throw new HttpsError('invalid-argument', 'storeId is required.');
@@ -3785,21 +3800,34 @@ export const completeStoreDeployment = onCall<{
   // Create a deployment history log entry
   const storeVersion =
     (storeData['templateVersion'] as string) || (storeData['appVersion'] as string);
-  const effectiveVersion =
+  let effectiveVersion =
     version && version !== '0.1.0'
       ? version
       : storeVersion
         ? storeVersion.replace(/^v/, '')
         : CURRENT_TEMPLATE_VERSION;
 
+  // El historial debe decir la verdad sobre QUÉ se compiló: se prioriza la procedencia
+  // reportada por el workflow (`sourceRef`/`sourceSha`) sobre `ref`/`commitSha`, que en
+  // un repository_dispatch apuntan a la rama por defecto y no al ref compilado.
+  const historyRef = sourceRef || ref || '';
+  const historySha = sourceSha || commitSha || '';
+
+  // Un deploy de prueba (rama/commit) no se identifica con un semver: se etiqueta con su
+  // ref + sha para que la columna Versión del historial no mienta diciendo "0.9.5".
+  if (sourceKind === 'branch' || sourceKind === 'commit') {
+    effectiveVersion = `${historyRef || sourceKind}@${historySha.slice(0, 7)}`;
+  }
+
   await recordStoreDeployHistory({
     db,
     storeId,
     success,
     version: effectiveVersion,
-    commitSha: commitSha || '',
+    commitSha: historySha,
     commitMessage: commitMessage || '',
-    ref: ref || '',
+    ref: historyRef,
+    sourceKind: sourceKind || '',
     error: success ? null : 'Storefront deployment failed. Check GitHub Action logs for details.',
   });
 
@@ -3818,10 +3846,28 @@ export const completeStoreDeployment = onCall<{
     logger.warn('[recordDeploymentResult] Non-fatal error pruning old deploy history:', err);
   }
 
+  // Procedencia del build, tal como queda registrada en la tienda. `templateVersion` NO se
+  // toca: es la release estable a la que la tienda puede volver.
+  const deploySourceUpdate: Record<string, unknown> = {
+    'deploySource.status': success ? 'ok' : 'failed',
+    'deploySource.error': success
+      ? null
+      : 'El despliegue en GitHub Actions falló. Revisá los logs para más detalles.',
+    'deploySource.commitSha': historySha,
+    'deploySource.commitMessage': commitMessage || '',
+  };
+  if (sourceKind) deploySourceUpdate['deploySource.kind'] = sourceKind;
+  if (sourceRef) deploySourceUpdate['deploySource.ref'] = sourceRef;
+  if (historySha) deploySourceUpdate['lastDeployedCommit'] = historySha;
+  // Canal: una rama o commit es canal de prueba; una release es estable.
+  const isTestSource = sourceKind === 'branch' || sourceKind === 'commit';
+  deploySourceUpdate['targetChannel'] = isTestSource ? 'test' : 'stable';
+
   if (!success) {
     await storeRef.update({
       redeployStatus: 'failed',
       redeployError: 'El despliegue en GitHub Actions falló. Revisá los logs para más detalles.',
+      ...deploySourceUpdate,
       updatedAt: new Date(),
     });
   }
@@ -3831,6 +3877,7 @@ export const completeStoreDeployment = onCall<{
       redeployStatus: 'idle',
       redeployError: null,
       lastDeployedAt: new Date(),
+      ...deploySourceUpdate,
       updatedAt: new Date(),
     });
     return { success: true };

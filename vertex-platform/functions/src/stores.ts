@@ -18,6 +18,15 @@ import {
   summarizeShardCapacity,
   DEFAULT_MAX_STORES_PER_SHARD,
 } from './runtime';
+import {
+  assertDeploySourceAllowed,
+  parseDeploySourceRequest,
+  resolveDeploySource,
+  resolveDefaultDeploySource,
+  resolveReactivationDeploySource,
+  toPersistedDeploySource,
+  type ResolvedDeploySource,
+} from './deployment-source';
 import { verifyGitHubOidcToken } from './github-oidc';
 import type {
   InviteStaffPayload,
@@ -722,7 +731,7 @@ export const redeployStore = onCall<RedeployStorePayload>(
     }
     await checkRateLimit(request.auth?.uid, 'redeployStore', 10, 15);
 
-    const { storeId, ref: requestedRef } = request.data;
+    const { storeId } = request.data;
     if (!storeId) {
       throw new HttpsError('invalid-argument', 'storeId is required.');
     }
@@ -743,114 +752,32 @@ export const redeployStore = onCall<RedeployStorePayload>(
       templateVersion?: string;
       autoUpdate?: boolean;
       environment?: 'development' | 'production';
+      allowTestDeployments?: boolean;
     };
 
-    const projectId = resolveRuntimeProjectId(store);
-    const runtimeSiteId = store.runtimeSiteId || store.id;
-    const tenantId = store.slug || store.tenantId || store.id;
+    // Fuente pedida explícitamente (validada contra GitHub) o política estándar de la tienda.
+    const requested = parseDeploySourceRequest(request.data.source, request.data.ref);
+    if (requested) {
+      assertDeploySourceAllowed(store, requested);
+    }
 
-    const configSnap = await db
+    const source: ResolvedDeploySource = requested
+      ? await resolveDeploySource(requested)
+      : resolveDefaultDeploySource(store, resolvePlatformEnvironment(PLATFORM_PROJECT));
+
+    await db
       .collection('stores')
       .doc(storeId)
-      .collection('private')
-      .doc('firebaseConfig')
-      .get();
+      .update({
+        redeployStatus: 'deploying',
+        redeployError: null,
+        redeployStartedAt: new Date(),
+        deploySource: toPersistedDeploySource(source, request.auth?.uid || ''),
+        updatedAt: new Date(),
+      });
 
-    if (!configSnap.exists) {
-      throw new HttpsError('failed-precondition', 'Store firebase config is not found.');
-    }
-    const firebaseConfig = configSnap.data();
-
-    const pat = await getGitHubPat();
-    const deployTokenValue = await getDeployToken();
-    const deploySequence = await calculateDeploySequence(db, storeId);
-    const env = resolvePlatformEnvironment(PLATFORM_PROJECT);
-    const isStoreDev =
-      store.environment === 'development' ||
-      String(store.firebaseProjectId || store.runtimeProjectId || '').includes('-dev');
-    const targetRef = env === 'production' ? 'main' : env === 'local' ? 'local' : 'develop';
-
-    // Si se especifica una rama o ref explícito (ej: 'develop', 'refs/heads/feature-x'),
-    // se respeta directamente para permitir probar cambios sin crear tags.
-    let ref: string;
-    if (requestedRef && typeof requestedRef === 'string' && requestedRef.trim()) {
-      const trimmedRef = requestedRef.trim();
-      ref = trimmedRef.startsWith('refs/') ? trimmedRef : `refs/heads/${trimmedRef}`;
-    } else {
-      // Lógica de actualización segura estándar:
-      // - En develop (sandbox): solo si autoUpdate=true Y la tienda es de desarrollo califica a 'develop'. Si es de producción, NUNCA compila develop.
-      // - En main (producción): si autoUpdate=true compila 'main'. Si autoUpdate=false compila estrictamente su templateVersion fijada.
-      ref =
-        store.autoUpdate === true
-          ? env === 'development'
-            ? isStoreDev
-              ? 'develop'
-              : store.templateVersion
-                ? `refs/tags/v${store.templateVersion.replace(/^v/, '')}`
-                : 'main'
-            : targetRef
-          : store.templateVersion
-            ? `refs/tags/v${store.templateVersion.replace(/^v/, '')}`
-            : targetRef;
-    }
-
-    await db.collection('stores').doc(storeId).update({
-      redeployStatus: 'deploying',
-      redeployError: null,
-      redeployStartedAt: new Date(),
-      updatedAt: new Date(),
-    });
-
-    const templateVersionStr = store.templateVersion || '0.4.0';
     try {
-      const res = await fetch(
-        'https://api.github.com/repos/vertex-solutions-ar/ecommerce-vertex/dispatches',
-        {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${pat}`,
-            Accept: 'application/vnd.github+json',
-            'X-GitHub-Api-Version': '2022-11-28',
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            event_type: 'provision-store',
-            client_payload: {
-              store_id: storeId,
-              tenant_id: tenantId,
-              project_id: projectId,
-              site_id: runtimeSiteId,
-              firebase_config: JSON.stringify(firebaseConfig),
-              platform_project_id: PLATFORM_PROJECT,
-              deploy_token: deployTokenValue,
-              environment: env,
-              ref: ref,
-              meta: {
-                store_name: store.name,
-                version: templateVersionStr,
-                deploy_number: deploySequence.deployNumber,
-                redeploy_number: deploySequence.redeployNumber,
-                is_redeploy: deploySequence.isRedeploy,
-                deploy_timestamp: deploySequence.deployTimestamp,
-              },
-            },
-          }),
-        },
-      );
-
-      if (!res.ok && res.status !== 204) {
-        const body = await res.text();
-        console.error('redeployStore GitHub dispatch error:', res.status, body);
-        await db
-          .collection('stores')
-          .doc(storeId)
-          .update({
-            redeployStatus: 'failed',
-            redeployError: `No se pudo iniciar el flujo de compilación en GitHub Actions (${res.status}).`,
-            updatedAt: new Date(),
-          });
-        throw new HttpsError('internal', `GitHub API error (${res.status}): ${body.slice(0, 200)}`);
-      }
+      await dispatchStoreDeployment(storeId, source);
     } catch (dispatchErr) {
       if (dispatchErr instanceof HttpsError) {
         throw dispatchErr;
@@ -870,10 +797,17 @@ export const redeployStore = onCall<RedeployStorePayload>(
 );
 
 /**
- * Dispara el deploy de una tienda vía GitHub Actions (provision-store con la versión activa).
- * Compartido por redeployStore y activateStore.
+ * Dispara el deploy de una tienda vía GitHub Actions (`provision-store`) sobre la fuente
+ * ya resuelta. Única ruta de despliegue: la comparten `redeployStore` y `activateStore`.
+ *
+ * `source` NO es opcional a propósito: obliga a resolver la fuente con
+ * `deployment-source.ts` (validación + reglas de seguridad) en vez de duplicar la
+ * política de refs en dos lugares divergentes.
  */
-async function dispatchStoreDeployment(storeId: string, customRef?: string): Promise<void> {
+async function dispatchStoreDeployment(
+  storeId: string,
+  source: ResolvedDeploySource,
+): Promise<void> {
   const db = getFirestore();
   const snap = await db.collection('stores').doc(storeId).get();
   if (!snap.exists) throw new Error('Store not found.');
@@ -886,8 +820,6 @@ async function dispatchStoreDeployment(storeId: string, customRef?: string): Pro
     firebaseProjectId?: string;
     runtimeProjectId?: string;
     templateVersion?: string;
-    autoUpdate?: boolean;
-    environment?: 'development' | 'production';
   };
   const projectId = resolveRuntimeProjectId(store);
   const runtimeSiteId = store.runtimeSiteId || store.id;
@@ -906,31 +838,6 @@ async function dispatchStoreDeployment(storeId: string, customRef?: string): Pro
   const deployTokenValue = await getDeployToken();
   const deploySequence = await calculateDeploySequence(db, storeId);
   const env = resolvePlatformEnvironment(PLATFORM_PROJECT);
-  const isStoreDev =
-    store.environment === 'development' ||
-    String(store.firebaseProjectId || store.runtimeProjectId || '').includes('-dev');
-  const targetRef = env === 'production' ? 'main' : env === 'local' ? 'local' : 'develop';
-  let ref: string;
-  if (customRef && typeof customRef === 'string' && customRef.trim()) {
-    const trimmed = customRef.trim();
-    ref = trimmed.startsWith('refs/') ? trimmed : `refs/heads/${trimmed}`;
-  } else {
-    // Lógica de actualización segura:
-    // - En develop (sandbox): solo si autoUpdate=true Y la tienda es de desarrollo califica a 'develop'. Si es de producción, NUNCA compila develop.
-    // - En main (producción): si autoUpdate=true compila 'main'. Si autoUpdate=false compila estrictamente su templateVersion fijada.
-    ref =
-      store.autoUpdate === true
-        ? env === 'development'
-          ? isStoreDev
-            ? 'develop'
-            : store.templateVersion
-              ? `refs/tags/v${store.templateVersion.replace(/^v/, '')}`
-              : 'main'
-          : targetRef
-        : store.templateVersion
-          ? `refs/tags/v${store.templateVersion.replace(/^v/, '')}`
-          : targetRef;
-  }
 
   const templateVersionStr = store.templateVersion || '0.4.0';
   const res = await fetch(
@@ -954,7 +861,9 @@ async function dispatchStoreDeployment(storeId: string, customRef?: string): Pro
           platform_project_id: PLATFORM_PROJECT,
           deploy_token: deployTokenValue,
           environment: env,
-          ref: ref,
+          ref: source.gitRef,
+          // Las 9 propiedades raíz se mantienen intactas (ver commit #403): la
+          // procedencia del build viaja dentro de `meta`.
           meta: {
             store_name: store.name,
             version: templateVersionStr,
@@ -962,6 +871,9 @@ async function dispatchStoreDeployment(storeId: string, customRef?: string): Pro
             redeploy_number: deploySequence.redeployNumber,
             is_redeploy: deploySequence.isRedeploy,
             deploy_timestamp: deploySequence.deployTimestamp,
+            source_kind: source.kind,
+            source_ref: source.ref,
+            source_sha: source.commitSha,
           },
         },
       }),
@@ -1046,7 +958,16 @@ export const activateStore = onCall<{ storeId: string }>(
     const storeRef = db.collection('stores').doc(storeId);
     const snap = await storeRef.get();
     if (!snap.exists) throw new HttpsError('not-found', 'Store not found.');
-    const store = snap.data() as { status?: string };
+    const store = snap.data() as {
+      status?: string;
+      templateVersion?: string;
+      autoUpdate?: boolean;
+      environment?: 'development' | 'production';
+      firebaseProjectId?: string;
+      runtimeProjectId?: string;
+      allowTestDeployments?: boolean;
+      deploySource?: { kind?: 'release' | 'branch' | 'commit'; ref?: string };
+    };
     if (store.status !== 'suspended') {
       throw new HttpsError('failed-precondition', 'Solo se pueden activar tiendas suspendidas.');
     }
@@ -1057,9 +978,13 @@ export const activateStore = onCall<{ storeId: string }>(
       updatedAt: new Date(),
     });
 
-    // Re-desplegar el sitio (misma lógica de redeployStore — provision-store con la versión activa).
+    // Re-desplegar el sitio sobre la MISMA fuente que tenía (incluida una rama de prueba):
+    // reactivar no debe resetear silenciosamente una tienda de testing a stable.
+    const platformEnv = resolvePlatformEnvironment(PLATFORM_PROJECT);
+    const source = resolveReactivationDeploySource(store, platformEnv);
+
     try {
-      await dispatchStoreDeployment(storeId);
+      await dispatchStoreDeployment(storeId, source);
     } catch (err) {
       console.warn(
         `[activateStore] Dispatch de redeploy falló (se reintentará manualmente) ${storeId}:`,
@@ -1950,8 +1875,7 @@ export const updateStoreConfig = onCall<UpdateStoreConfigPayload>(
 
     const configToSave = JSON.parse(JSON.stringify(config)) as Record<string, any>;
     const mercadoPago = configToSave['payments']?.['mercadoPago'] as
-      | Record<string, any>
-      | undefined;
+      Record<string, any> | undefined;
     if (mercadoPago) {
       mercadoPago['publicKey'] = String(mercadoPago['publicKey'] || '').trim();
       mercadoPago['accessToken'] = String(mercadoPago['accessToken'] || '').trim();

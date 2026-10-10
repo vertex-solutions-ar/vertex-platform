@@ -18,10 +18,7 @@ export interface AdminInfo {
 export type ProvisioningMode = 'EMPTY' | 'CATALOG_ONLY' | 'FULL_DEMO';
 
 export type BusinessVertical =
-  | 'INDUMENTARIA_MODA'
-  | 'GASTRONOMIA_CAFE'
-  | 'TECNOLOGIA'
-  | 'HOGAR_DECO';
+  'INDUMENTARIA_MODA' | 'GASTRONOMIA_CAFE' | 'TECNOLOGIA' | 'HOGAR_DECO';
 
 export interface PricingOverride {
   type: 'custom_fixed_price' | 'percentage_discount' | 'fixed_discount';
@@ -228,5 +225,17 @@ export interface InviteStaffPayload {
 
 export interface RedeployStorePayload {
   storeId: string;
+  /**
+   * Fuente explícita a compilar. Sin esto rige la política estándar de la tienda
+   * (release fijada / autoUpdate).
+   */
+  source?: {
+    kind: 'release' | 'branch' | 'commit';
+    value: string;
+  };
+  /**
+   * @deprecated Forma legacy equivalente a `source: { kind: 'branch', value: ref }`.
+   * Acepta `develop` y `refs/heads/develop`. Usar `source`.
+   */
   ref?: string;
 }

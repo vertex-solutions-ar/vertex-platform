@@ -90,8 +90,7 @@ async function loadOwnerCredentialPool(): Promise<ProvisioningOwnerCredentials[]
       name: `projects/${PLATFORM_PROJECT}/secrets/platform-owner-credentials-pool/versions/latest`,
     });
     const parsed = JSON.parse(version.payload!.data!.toString()) as
-      | OwnerCredentialsSecret[]
-      | { owners?: OwnerCredentialsSecret[] };
+      OwnerCredentialsSecret[] | { owners?: OwnerCredentialsSecret[] };
     const rawOwners = Array.isArray(parsed) ? parsed : parsed.owners;
     if (!Array.isArray(rawOwners) || rawOwners.length === 0) {
       throw new Error(
@@ -355,11 +354,14 @@ export interface RecordDeployHistoryParams {
   commitSha?: string;
   commitMessage?: string;
   ref?: string;
+  /** Tipo de fuente compilada (`release` | `branch` | `commit`). */
+  sourceKind?: string;
   error?: string | null;
 }
 
 export async function recordStoreDeployHistory(params: RecordDeployHistoryParams): Promise<void> {
-  const { db, storeId, success, version, commitSha, commitMessage, ref, error } = params;
+  const { db, storeId, success, version, commitSha, commitMessage, ref, sourceKind, error } =
+    params;
   try {
     const storeRef = db.collection('stores').doc(storeId);
     const deploySequence = await calculateDeploySequence(db, storeId);
@@ -374,6 +376,7 @@ export async function recordStoreDeployHistory(params: RecordDeployHistoryParams
       commitSha: commitSha || '',
       commitMessage: commitMessage || '',
       ref: ref || '',
+      sourceKind: sourceKind || '',
       version,
       deployLabel,
       deployNumber: deploySequence.deployNumber,
