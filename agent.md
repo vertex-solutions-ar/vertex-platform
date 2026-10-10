@@ -113,6 +113,14 @@ cuando el storefront publica un nuevo release.
 
 ---
 
+## 🔄 Redespliegue de Tiendas para Pruebas (Sin Tag Nuevo)
+
+- **Despliegue de Ramas / Test**: En el panel de detalle de la tienda (`/stores/:id` > tab Orquestación), además del selector de releases etiquetadas (`vX.Y.Z`), se dispone del modo **"Rama / Test (sin tag)"**.
+- **Soporte en Backend**: `redeployStore` (`stores.ts`) acepta el parámetro opcional `ref?: string` (ej. `develop`, `feat/mi-cambio`). Cuando se provee, la Cloud Function despacha el evento `provision-store` directamente con esa referencia en GitHub Actions (`client_payload.ref`), permitiendo probar cambios en caliente en shards de testing sin necesidad de generar un nuevo tag de release semver.
+- **Retrocompatibilidad**: Si no se especifica `ref`, se preserva el comportamiento estándar basado en la versión fijada de la plantilla o la política de actualización de la tienda.
+
+---
+
 ## 🧹 Política de Higiene del Repositorio (Clean Repo Policy)
 
 - **Archivos Prohibidos en Git**: Jamás commitear carpetas temporales de IDEs (`.antigravitycli/`, `.gemini/`, `.claude/`, `.cursor/`), logs (`firestore-debug.log`, `firebase-debug.log`, `*.log`), credenciales `.env`, ni datos locales de emuladores (`emulator-data/`).

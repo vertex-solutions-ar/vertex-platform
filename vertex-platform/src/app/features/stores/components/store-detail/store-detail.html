@@ -430,7 +430,88 @@
                 </div>
 
                 <div class="version-selector">
-                  @if (isLoadingVersions()) {
+                  <div
+                    class="deploy-mode-toggle mb-2"
+                    style="display: flex; gap: 0.5rem; align-items: center"
+                  >
+                    <button
+                      type="button"
+                      class="btn btn-sm"
+                      [class.btn-primary]="deployTargetType() === 'version'"
+                      [class.btn-outline-secondary]="deployTargetType() !== 'version'"
+                      (click)="deployTargetType.set('version')"
+                      [disabled]="
+                        isDeploying() ||
+                        isStoreUpdating() ||
+                        deployActionState().status === 'running'
+                      "
+                    >
+                      <i class="bi bi-tag"></i> Release / Versión
+                    </button>
+                    <button
+                      type="button"
+                      class="btn btn-sm"
+                      [class.btn-primary]="deployTargetType() === 'branch'"
+                      [class.btn-outline-secondary]="deployTargetType() !== 'branch'"
+                      (click)="deployTargetType.set('branch')"
+                      [disabled]="
+                        isDeploying() ||
+                        isStoreUpdating() ||
+                        deployActionState().status === 'running'
+                      "
+                    >
+                      <i class="bi bi-git"></i> Rama / Test (sin tag)
+                    </button>
+                  </div>
+
+                  @if (deployTargetType() === 'branch') {
+                    <div class="row g-2 align-items-center">
+                      <div class="col">
+                        <div class="input-group">
+                          <span class="input-group-text"><i class="bi bi-bezier2"></i></span>
+                          <input
+                            type="text"
+                            class="form-control"
+                            placeholder="Ej. develop, feat/mi-cambio"
+                            [value]="customBranchRef()"
+                            (input)="customBranchRef.set($any($event.target).value)"
+                            [disabled]="
+                              isDeploying() ||
+                              isStoreUpdating() ||
+                              deployActionState().status === 'running'
+                            "
+                          />
+                        </div>
+                        <small class="text-muted d-block mt-1">
+                          Despliega directamente el código de esta rama para pruebas sin crear una
+                          nueva release.
+                        </small>
+                      </div>
+                      <div class="col-auto">
+                        <button
+                          class="action-btn action-btn--primary"
+                          [disabled]="
+                            isDeploying() ||
+                            isStoreUpdating() ||
+                            store()!.status !== 'active' ||
+                            !customBranchRef().trim() ||
+                            deployActionState().status === 'running'
+                          "
+                          (click)="triggerDeployment()"
+                        >
+                          @if (
+                            isDeploying() ||
+                            isStoreUpdating() ||
+                            deployActionState().status === 'running'
+                          ) {
+                            <app-spinner size="sm" label="Desplegando…" />
+                          } @else {
+                            <i class="bi bi-play-circle"></i> Desplegar rama {{ customBranchRef() }}
+                          }
+                        </button>
+                      </div>
+                    </div>
+                  } @else if (isLoadingVersions()) {
                     <div class="row g-2 align-items-center">
                       <div class="col">
                         <div class="skeleton skeleton-select"></div>
