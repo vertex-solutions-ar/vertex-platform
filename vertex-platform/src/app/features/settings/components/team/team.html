@@ -88,6 +88,7 @@
       </div>
 
       <button
+        type="button"
         class="btn btn-primary"
         (click)="addAdmin()"
         [disabled]="isAdding() || !newEmail().trim()"
@@ -145,6 +146,7 @@
 
             <div class="admin-item__actions">
               <button
+                type="button"
                 class="btn btn-secondary btn--sm"
                 (click)="resendInvite(admin.email)"
                 [disabled]="resendingEmail() === admin.email"
@@ -161,7 +163,13 @@
                 }}</span>
               </button>
 
-              <button class="btn btn-icon" (click)="copyEmail(admin.email)" title="Copiar email">
+              <button
+                type="button"
+                class="btn btn-icon"
+                (click)="copyEmail(admin.email)"
+                title="Copiar email"
+                aria-label="Copiar email"
+              >
                 <i
                   class="bi"
                   [class.bi-check2]="copiedEmail() === admin.email"
@@ -170,10 +178,12 @@
               </button>
 
               <button
+                type="button"
                 class="btn btn-icon btn-icon--danger"
                 (click)="removeAdmin(admin.uid, admin.email)"
                 [disabled]="removingUid() === admin.uid"
                 title="Cancelar invitación"
+                aria-label="Cancelar invitación"
               >
                 <i class="bi bi-trash"></i>
               </button>
@@ -253,7 +263,13 @@
             </div>
 
             <div class="admin-item__actions">
-              <button class="btn btn-icon" (click)="copyEmail(admin.email)" title="Copiar email">
+              <button
+                type="button"
+                class="btn btn-icon"
+                (click)="copyEmail(admin.email)"
+                title="Copiar email"
+                aria-label="Copiar email"
+              >
                 <i
                   class="bi"
                   [class.bi-check2]="copiedEmail() === admin.email"
@@ -263,10 +279,12 @@
 
               @if (!isSelf) {
                 <button
+                  type="button"
                   class="btn btn-icon btn-icon--danger"
                   (click)="removeAdmin(admin.uid, admin.email)"
                   [disabled]="removingUid() === admin.uid"
                   title="Revocar acceso"
+                  aria-label="Revocar acceso"
                 >
                   <i class="bi bi-trash"></i>
                 </button>

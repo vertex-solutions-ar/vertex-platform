@@ -142,8 +142,8 @@
       <div class="detail-card detail-card--skeleton">
         <div class="skeleton skeleton--card-title"></div>
         <div class="skeleton-dns-blocks mt-3">
-          <div class="skeleton skeleton--text mb-3" style="height: 60px"></div>
-          <div class="skeleton skeleton--text mb-3" style="height: 60px"></div>
+          <div class="skeleton skeleton--text skeleton--block mb-3"></div>
+          <div class="skeleton skeleton--text skeleton--block mb-3"></div>
         </div>
       </div>
     </div>
@@ -245,6 +245,7 @@
 
             <div class="dns-form__actions">
               <button
+                type="button"
                 class="btn-connect-domain"
                 [disabled]="isConnectingDomain() || !canConnectDomain()"
                 (click)="connectDomain()"
@@ -282,23 +283,17 @@
               </div>
             </div>
 
-            <div
-              class="dns-meta-info"
-              style="
-                margin-top: 1.5rem;
-                border-top: 1px solid var(--platform-card-border);
-                padding-top: 1rem;
-              "
-            >
-              <p style="font-size: 0.85rem; color: var(--platform-text-muted)">
+            <div class="dns-meta-info dns-ssl-note">
+              <p>
                 El enrutamiento está configurado en Vertex API. Recordá que la propagación del
                 certificado SSL gratuito puede tardar entre 2 y 24 horas una vez creados los
                 registros.
               </p>
             </div>
 
-            <div class="dns-actions-bar" style="margin-top: 1.5rem; display: flex; gap: 0.75rem">
+            <div class="dns-actions-bar">
               <button
+                type="button"
                 class="btn btn-primary"
                 [disabled]="isVerifyingDNS()"
                 (click)="verifyDNS(false)"
@@ -310,6 +305,7 @@
                 }
               </button>
               <button
+                type="button"
                 class="btn btn-secondary"
                 [disabled]="domainRefreshLoading() || isVerifyingDNS()"
                 (click)="loadDomainStatus()"
@@ -322,6 +318,7 @@
                 }
               </button>
               <button
+                type="button"
                 class="btn btn-danger-ghost"
                 [disabled]="isDisconnectingDomain()"
                 (click)="openDisconnectDomainModal()"
@@ -330,14 +327,9 @@
               </button>
             </div>
             @if (domainCheckError()) {
-              <p
-                style="
-                  margin-top: 0.75rem;
-                  font-size: 0.85rem;
-                  color: var(--platform-danger, #f87171);
-                "
-              >
-                <i class="bi bi-exclamation-triangle me-1"></i>{{ domainCheckError() }}
+              <p class="dns-check-error">
+                <i class="bi bi-exclamation-triangle me-1" aria-hidden="true"></i
+                >{{ domainCheckError() }}
               </p>
             }
           </div>
@@ -396,15 +388,7 @@
       @if (dnsRecords().length > 0 || store()!.customDomain) {
         <div class="detail-card">
           <h2 class="detail-card__title"><i class="bi bi-server"></i> Registros DNS Requeridos</h2>
-          <p
-            class="form-hint"
-            style="
-              margin-bottom: 1.25rem;
-              text-transform: none;
-              font-weight: normal;
-              letter-spacing: normal;
-            "
-          >
+          <p class="form-hint dns-records-heading">
             Ingresá al panel de control de tu registrador de dominio (e.g. NIC.ar, GoDaddy,
             Cloudflare) y da de alta los siguientes registros.
           </p>
@@ -452,6 +436,7 @@
                             <span class="copied-feedback">¡Copiado!</span>
                           } @else {
                             <button
+                              type="button"
                               class="btn btn-secondary btn--sm"
                               title="Copiar {{ record.type }} al portapapeles"
                               (click)="copyDnsRecord(record.type, record.value)"
@@ -479,7 +464,7 @@
       <h3 class="modal__title">
         <i class="bi bi-globe me-2 text-primary"></i>¿Cambiar la dirección gratuita?
       </h3>
-      <p style="color: var(--platform-text-secondary); margin-bottom: 1rem">
+      <p class="modal__body">
         Al cambiar la dirección, la URL anterior dejará de responder inmediatamente. Deberás
         actualizar los enlaces en tus redes sociales y WhatsApp.
         <br /><br />
@@ -487,7 +472,7 @@
         <code>https://{{ subInput() || '...' }}.web.app</code>
       </p>
       @if (subError()) {
-        <p style="color: var(--platform-danger); margin-bottom: 1rem">{{ subError() }}</p>
+        <p class="modal__body modal__body--error">{{ subError() }}</p>
       }
       <div class="modal__actions">
         <button
@@ -519,13 +504,13 @@
   <div class="modal-overlay" (click)="cancelDisconnectDomainModal()">
     <div class="modal glass-modal" (click)="$event.stopPropagation()">
       <h3 class="modal__title"><i class="bi bi-unlink me-2 text-danger"></i>Desvincular Dominio</h3>
-      <p style="color: var(--platform-text-secondary); margin-bottom: 1.25rem">
+      <p class="modal__body modal__body--muted">
         Se eliminará el mapeo en Firebase Hosting y se quitará
         <code>{{ store()?.customDomain }}</code> de la tienda. La propagación DNS y el certificado
         SSL dejarán de apuntar a tu storefront.
       </p>
       @if (domainDisconnectError()) {
-        <p style="color: var(--platform-danger, #f87171); margin-bottom: 1rem">
+        <p class="modal__body modal__body--error">
           {{ domainDisconnectError() }}
         </p>
       }

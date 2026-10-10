@@ -1,3 +1,4 @@
+@use '../../../../../styles/mixins' as *;
 :host {
   display: block;
 }
@@ -686,4 +687,37 @@
 .store-links-table th {
   color: var(--platform-text-muted);
   border-bottom-color: var(--platform-card-border);
+}
+
+/* ═══ Responsive (H-09) ═══════════════════════════════════════════════════ */
+@include until(md) {
+  .master-config-panel,
+  .pricing-plan-card,
+  .alert {
+    flex-wrap: wrap;
+  }
+
+  .store-search-box {
+    width: 100%;
+  }
+}
+
+@include until(sm) {
+  .page-top,
+  .store-search-box,
+  .store-identity {
+    min-width: 0;
+  }
+
+  .store-search-box {
+    min-width: 0;
+  }
+
+  .pricing-cards-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .store-identity {
+    flex-wrap: wrap;
+  }
 }

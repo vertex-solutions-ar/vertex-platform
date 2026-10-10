@@ -110,6 +110,35 @@ describe('PlatformLayout', () => {
     mockAuthService.user.set({ email: '' });
     expect(component.userInitial()).toBe('?');
   });
+
+  it('cierra el drawer con Escape', () => {
+    component.isSidebarOpen.set(true);
+    component.onEscape();
+    expect(component.isSidebarOpen()).toBe(false);
+  });
+
+  it('no marca inert en desktop (la sidebar siempre es visible)', () => {
+    Object.defineProperty(window, 'innerWidth', { value: 1440, writable: true });
+    component.onResize();
+    expect(component.isDrawerMode()).toBe(false);
+    expect(component.isSidebarInert()).toBe(false);
+    expect(component.isMainInert()).toBe(false);
+  });
+
+  it('en modo drawer saca del tabulado la sidebar cerrada y el contenido abierto', () => {
+    Object.defineProperty(window, 'innerWidth', { value: 800, writable: true });
+    component.onResize();
+    expect(component.isDrawerMode()).toBe(true);
+
+    // Drawer cerrado: el nav no debe ser tabulable, el contenido sí.
+    expect(component.isSidebarInert()).toBe(true);
+    expect(component.isMainInert()).toBe(false);
+
+    // Drawer abierto: al revés.
+    component.isSidebarOpen.set(true);
+    expect(component.isSidebarInert()).toBe(false);
+    expect(component.isMainInert()).toBe(true);
+  });
 });
 
 describe('isDevHostname', () => {

@@ -1,3 +1,5 @@
+@use '../../../../../styles/mixins' as *;
+
 :host {
   display: block;
 }
@@ -624,6 +626,16 @@
   border-radius: 6px;
 }
 
+.skeleton--tag-sm {
+  width: 80px;
+}
+
+/* Wrapper del título en la tarjeta skeleton: antes era `style="flex: 1"` inline. */
+.store-card__title-wrap--skeleton {
+  flex: 1;
+  min-width: 0;
+}
+
 @keyframes skeleton-shimmer {
   0% {
     background-position: 200% 0;
@@ -784,11 +796,25 @@
   gap: 0.6rem;
 }
 
-/* ═══ Responsive Tiendas ═══ */
-@media (max-width: 768px) {
+/* ═══ Responsive Tiendas ═══
+   Mobile-first con los mixins compartidos. Antes sólo existía el corte de 768px:
+   en pantallas chicas la barra de stats quedaba en 4 columnas apretadas y los
+   filtros se amontonaban en una sola línea. */
+@include until(lg) {
+  .stores-grid {
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  }
+}
+
+@include until(md) {
   .page-top {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .page-top .btn-primary {
+    width: 100%;
+    justify-content: center;
   }
 
   .stores-toolbar,
@@ -805,5 +831,24 @@
 
   .filter-select {
     width: 100%;
+  }
+
+  .stores-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@include until(sm) {
+  .stats-bar {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .store-card {
+    padding: 1rem;
+  }
+
+  .store-card__header {
+    flex-wrap: wrap;
+    gap: 0.5rem;
   }
 }

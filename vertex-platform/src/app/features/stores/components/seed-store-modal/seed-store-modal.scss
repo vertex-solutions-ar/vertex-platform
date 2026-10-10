@@ -1,3 +1,4 @@
+@use '../../../../../styles/mixins' as *;
 :host {
   position: fixed;
   inset: 0;
@@ -193,6 +194,18 @@
     border-radius: 4px;
     &:hover {
       background: rgba(255, 255, 255, 0.25);
+    }
+  }
+}
+/* ═══ Responsive (H-09) ═══════════════════════════════════════════════════ */
+@include until(md) {
+  .modal {
+    max-width: 92vw;
+    max-height: 88vh;
+    overflow-y: auto;
+
+    .vertical-card {
+      flex-wrap: wrap;
     }
   }
 }

@@ -4,12 +4,24 @@ import { getFunctions, httpsCallable } from 'firebase/functions';
 import { StoresService } from '@core/services/stores';
 import { errorMessage } from '@core/utils/error.util';
 import type { Store, TemplateVersion, ProvisioningStep } from '@core/models/store';
+import type { TemplateBranch } from '@core/models/store';
+import type { DeploySourceKind } from '@core/models/store';
 import {
   STEP_ORDER,
   IDLE_STATE,
   type ActionProgressState,
   parseDateToMillis,
 } from './store-detail.util';
+
+/** Borrador del selector de fuente de despliegue (una entrada por tienda). */
+export interface DeploySourceDraft {
+  kind: DeploySourceKind;
+  release: string;
+  branch: string;
+  commit: string;
+}
+
+const EMPTY_DRAFT: DeploySourceDraft = { kind: 'release', release: '', branch: '', commit: '' };
 
 @Injectable({ providedIn: 'root' })
 export class StoreDetailOrchestrationService {
@@ -30,6 +42,18 @@ export class StoreDetailOrchestrationService {
   readonly versions = signal<TemplateVersion[]>([]);
   readonly latestVersion = signal<TemplateVersion | null>(null);
   readonly isLoadingVersions = signal(false);
+  /** Ramas reales del repositorio storefront, para el selector de fuente de despliegue. */
+  readonly branches = signal<TemplateBranch[]>([]);
+  readonly defaultBranch = signal<string>('main');
+  readonly isLoadingBranches = signal(false);
+  readonly branchesError = signal('');
+  /**
+   * Borrador del selector de fuente por tienda. Vive en el servicio (no en el componente)
+   * para que no se pierda al cambiar de pestaña o navegar fuera del detalle.
+   */
+  readonly deploySourceDrafts = signal<Map<string, DeploySourceDraft>>(
+    new Map<string, DeploySourceDraft>(),
+  );
   /** Cache de sesión: evita recargar releases en cada visita al detalle. */
   private cachedVersions: TemplateVersion[] | null =
     null; /** Estado de actualización aislado por ID de tienda para evitar contaminación reactiva entre tabs/tiendas */
@@ -296,8 +320,61 @@ export class StoreDetailOrchestrationService {
     }
   }
 
-  private checkedOAuthStoreId = '';
+  /**
+   * Carga las ramas reales del repositorio storefront (una vez, cacheada server-side).
+   * Sin esto el selector de rama volvería a ser un input de texto libre.
+   */
+  async loadTemplateRefs(force = false): Promise<void> {
+    if (!force && this.branches().length > 0) {
+      return;
+    }
+    this.isLoadingBranches.set(true);
+    this.branchesError.set('');
+    try {
+      const refs = await this.storesService.listTemplateRefs(force);
+      this.branches.set(refs?.branches ?? []);
+      this.defaultBranch.set(refs?.defaultBranch || 'main');
+    } catch (err) {
+      this.branches.set([]);
+      this.branchesError.set(
+        errorMessage(err, 'No se pudieron listar las ramas del repositorio storefront.'),
+      );
+    } finally {
+      this.isLoadingBranches.set(false);
+    }
+  }
 
+  /** Borrador del selector para una tienda, con defaults sensatos cuando no existe. */
+  getDeploySourceDraft(storeId: string, defaults?: Partial<DeploySourceDraft>): DeploySourceDraft {
+    const stored = this.deploySourceDrafts().get(storeId);
+    if (stored) {
+      return stored;
+    }
+    const branch =
+      defaults?.branch ||
+      this.branches().find((b) => b.name === 'develop')?.name ||
+      this.defaultBranch();
+    return { ...EMPTY_DRAFT, ...defaults, branch: branch || '' };
+  }
+
+  setDeploySourceDraft(
+    storeId: string,
+    patch: Partial<DeploySourceDraft>,
+    defaults?: Partial<DeploySourceDraft>,
+  ): void {
+    if (!storeId) {
+      return;
+    }
+    const current = this.getDeploySourceDraft(storeId, defaults);
+    const next = { ...current, ...patch };
+    this.deploySourceDrafts.update((map) => {
+      const updated = new Map(map);
+      updated.set(storeId, next);
+      return updated;
+    });
+  }
+
+  private checkedOAuthStoreId = '';
   async checkOauthRedirect(store: Store | null): Promise<void> {
     if (!store || (store.status !== 'active' && store.status !== 'suspended')) {
       this.oauthRedirect.set(null);

@@ -1,0 +1,205 @@
+@use '../../../../../styles/mixins' as *;
+
+// ══════════════════════════════════════════════════════════════════════════
+// Pestaña Pagos / Suscripciones
+//
+// Este componente no tenía stylesheet propio: heredaba los 4 831 líneas de
+// `store-detail.scss` vía `styleUrls`. Acá vive lo que faltaba, verificado
+// contra el CSS compilado (H-01 en docs/ui-audit.md), más el acordeón, que era
+// de Bootstrap y por eso no funcionaba.
+// ══════════════════════════════════════════════════════════════════════════
+
+/* ── Acordeón nativo (reemplaza al de Bootstrap) ─────────────────────────
+   El markup usaba `data-bs-toggle="collapse"` con `aria-expanded="false"` fijo.
+   Bootstrap JS no está cargado, así que "Gestión y Facturación de la Tienda"
+   nunca se podía abrir. Ahora el estado lo maneja el componente. */
+.accordion {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.accordion-item {
+  border: 1px solid var(--platform-card-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--platform-card-bg);
+}
+
+.accordion-header {
+  margin: 0;
+  font-size: inherit;
+  font-weight: inherit;
+}
+
+.accordion-button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  width: 100%;
+  padding: 0.7rem 0.9rem;
+  border: 0;
+  background: transparent;
+  color: var(--platform-text-primary);
+  font-family: inherit;
+  font-size: 0.875rem;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color var(--transition-base);
+
+  &:hover {
+    background: var(--platform-hover-overlay);
+  }
+
+  &::after {
+    content: '';
+    flex-shrink: 0;
+    width: 0.5rem;
+    height: 0.5rem;
+    border-right: 2px solid currentColor;
+    border-bottom: 2px solid currentColor;
+    transform: rotate(45deg);
+    transition: transform var(--transition-base);
+  }
+
+  &:not(.collapsed)::after {
+    transform: rotate(-135deg);
+  }
+}
+
+.accordion-collapse {
+  border-top: 1px solid var(--platform-card-border);
+}
+
+.accordion-body {
+  padding: 0.9rem;
+}
+
+/* El acordeón nunca debe depender de la clase `.collapse` de Bootstrap para
+   decidir visibilidad: eso es lo que lo dejaba inerte. */
+.master-sub-controls-accordion {
+  .accordion-item {
+    background: transparent;
+    border: none;
+  }
+
+  .accordion-button {
+    background: var(--platform-status-provisioning-bg);
+    border: 1px solid var(--platform-status-provisioning-border);
+    border-radius: var(--radius-md);
+    color: var(--platform-text-primary);
+  }
+}
+
+/* ── Variantes de alerta con la nomenclatura que usa el template ─────────── */
+.alert--error {
+  background: var(--platform-status-error-bg);
+  border: 1px solid var(--platform-status-error-border);
+  color: var(--platform-status-error-text);
+}
+
+.alert--success {
+  background: var(--platform-status-active-bg);
+  border: 1px solid var(--platform-status-active-border);
+  color: var(--platform-status-active-text);
+}
+
+/* ── Botones y utilidades que el markup usaba sin definición ────────────── */
+.btn-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--platform-accent-blue);
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.btn-outline-info {
+  background: transparent;
+  border: 1px solid var(--platform-status-active-border);
+  color: var(--platform-info);
+
+  &:hover:not(:disabled) {
+    background: var(--platform-status-active-bg);
+  }
+}
+
+/* Spinner de borde (equivalente al `.spinner-border` de Bootstrap). */
+.spinner-border {
+  display: inline-block;
+  width: 1.25rem;
+  height: 1.25rem;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  vertical-align: middle;
+}
+
+.spinner-border-sm {
+  width: 0.9rem;
+  height: 0.9rem;
+  border-width: 2px;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.bg-black-20 {
+  background: color-mix(in srgb, var(--platform-bg) 20%, transparent);
+}
+
+.border-white-10 {
+  border: 1px solid var(--platform-card-border);
+}
+
+.font-weight-bold {
+  font-weight: 700;
+}
+
+.text-xxs {
+  font-size: 0.68rem;
+}
+
+.tracking-wider {
+  letter-spacing: 0.06em;
+}
+
+/* ── Banner de tienda interna (sin circuito de suscripción) ─────────────── */
+.internal-store-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.65rem 0.85rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--platform-card-border);
+  background: var(--platform-hover-overlay);
+  font-size: 0.8rem;
+  color: var(--platform-text-secondary);
+}
+
+/* ── Opción de plan mensual del selector de suscripción ─────────────────── */
+.sub-link-option--monthly {
+  border-color: var(--platform-card-border-hover);
+}
+
+/* ── Badge "Master Admin" del acordeón (antes con `style=""` inline) ─────── */
+.mp-master-badge {
+  font-size: 0.65rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}

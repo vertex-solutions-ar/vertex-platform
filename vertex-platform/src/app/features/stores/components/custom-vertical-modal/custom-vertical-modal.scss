@@ -551,3 +551,8 @@
     transform: rotate(360deg);
   }
 }
+
+/* Input del emoji/icono (antes `style="max-width: 70px"` inline). */
+.emoji-input {
+  max-width: 70px;
+}
