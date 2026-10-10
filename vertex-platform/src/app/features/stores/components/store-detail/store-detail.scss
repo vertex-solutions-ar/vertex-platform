@@ -5053,3 +5053,90 @@ html[data-theme='light'] {
     justify-content: center;
   }
 }
+
+/* ── Reglas que estaban como `style=""` inline en el template (H-03) ────────
+   Fase 3: se reemplazaron los 17 últimos atributos style por clases, para que
+   el look de la pantalla deje de depender de valores sueltos en el markup. */
+.sd-step-error {
+  margin: 1rem 0;
+  padding: 0.75rem;
+  border-radius: 6px;
+  background: var(--platform-status-error-bg);
+  border: 1px solid var(--platform-status-error-border);
+  color: var(--platform-status-error-text);
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.sd-deploy-hint {
+  margin-bottom: 1rem;
+  text-transform: none;
+  font-weight: normal;
+  letter-spacing: normal;
+}
+
+.sd-invite-submit {
+  margin-top: 1rem;
+}
+
+.sd-deployment-empty {
+  padding: 2rem 0;
+}
+
+.sd-deploy-history-card {
+  margin-top: 1rem;
+}
+
+.sd-deployments-loading {
+  font-size: 0.9rem;
+  padding: 1rem 0;
+}
+
+.sd-deployment-title {
+  font-weight: 500;
+}
+
+.sd-deploy-history-intro {
+  font-size: 0.85rem;
+  color: var(--platform-text-secondary);
+  margin-bottom: 1.25rem;
+  line-height: 1.5;
+}
+
+.sd-refresh-history {
+  float: right;
+}
+
+.sd-empty-compact {
+  padding: 2rem 0;
+  text-align: center;
+}
+
+.sd-empty-roomy {
+  padding: 3rem 1.5rem;
+  text-align: center;
+}
+
+.sd-empty-icon {
+  font-size: 2rem;
+  color: var(--platform-text-secondary);
+  opacity: 0.5;
+}
+
+.sd-deploy-history-empty {
+  margin-top: 0.75rem;
+  color: var(--platform-text-secondary);
+  font-size: 0.9rem;
+}
+
+.sd-action-error-flush {
+  margin: 0.75rem 0 0;
+}
+
+.sd-form-extra {
+  margin: 1rem 0;
+}
+
+.sd-error-icon {
+  font-size: 2.5rem;
+}

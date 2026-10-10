@@ -100,17 +100,7 @@
         @if (
           store()!.status === 'error' && (store()!.unhandledProvisioningError || store()!.error)
         ) {
-          <div
-            class="step-item__error"
-            style="
-              margin-top: 1rem;
-              margin-bottom: 1rem;
-              padding: 0.75rem;
-              border-radius: 6px;
-              background: rgba(239, 68, 68, 0.1);
-              border: 1px solid rgba(239, 68, 68, 0.2);
-            "
-          >
+          <div class="step-item__error sd-step-error">
             {{ store()!.unhandledProvisioningError || store()!.error }}
           </div>
         }
@@ -911,15 +901,7 @@
                   <h2 class="detail-card__title">
                     <i class="bi bi-person-plus"></i> Invitar Staff
                   </h2>
-                  <p
-                    class="form-hint"
-                    style="
-                      margin-bottom: 1rem;
-                      text-transform: none;
-                      font-weight: normal;
-                      letter-spacing: normal;
-                    "
-                  >
+                  <p class="form-hint sd-deploy-hint">
                     La invitación inyecta Custom Claims en Firebase Auth del subproyecto y
                     sincroniza el perfil del usuario.
                   </p>
@@ -950,9 +932,8 @@
 
                     <button
                       type="submit"
-                      class="btn btn-primary"
+                      class="btn btn-primary sd-invite-submit"
                       [disabled]="isInvitingStaff()"
-                      style="margin-top: 1rem"
                     >
                       @if (isInvitingStaff()) {
                         <span class="spinner-sm"></span> Enviando invitación…
@@ -971,7 +952,7 @@
 
                   <div class="staff-list">
                     @if (staff().length === 0) {
-                      <div class="deployment-empty" style="padding: 2rem 0">
+                      <div class="deployment-empty sd-deployment-empty">
                         <i class="bi bi-people-mute"></i>
                         <p>No se encontraron miembros activos adicionales.</p>
                       </div>
@@ -1036,16 +1017,14 @@
                 </div>
 
                 <!-- Pending Invitations Card -->
-                <div class="detail-card detail-card--full" style="margin-top: 1rem">
+                <div class="detail-card detail-card--full sd-deploy-history-card">
                   <h2 class="detail-card__title">
                     <i class="bi bi-envelope-open"></i> Invitaciones Enviadas
                   </h2>
 
                   <div class="invitations-list">
                     @if (invitations().length === 0) {
-                      <p class="text-muted" style="font-size: 0.9rem; padding: 1rem 0">
-                        No hay invitaciones enviadas.
-                      </p>
+                      <p class="text-muted sd-deployments-loading">No hay invitaciones enviadas.</p>
                     } @else {
                       <div class="table-responsive">
                         <table class="deployment-table">
@@ -1061,7 +1040,7 @@
                           <tbody>
                             @for (invite of invitations(); track invite.id) {
                               <tr class="deployment-row">
-                                <td class="deployment-title" style="font-weight: 500">
+                                <td class="deployment-title sd-deployment-title">
                                   {{ invite.email }}
                                 </td>
                                 <td>
@@ -1150,20 +1129,12 @@
                 <h2 class="detail-card__title">
                   <i class="bi bi-clock-history"></i> Historial de Despliegues
                 </h2>
-                <p
-                  style="
-                    font-size: 0.85rem;
-                    color: var(--platform-text-secondary);
-                    margin-bottom: 1.25rem;
-                    line-height: 1.5;
-                  "
-                >
+                <p class="sd-deploy-history-intro">
                   Publicaciones ejecutadas por GitHub Actions en Firebase Hosting (versión, rama y
                   commit por fila).
                   <button
                     type="button"
-                    class="btn btn-secondary btn--sm ms-2"
-                    style="float: right"
+                    class="btn btn-secondary btn--sm ms-2 sd-refresh-history"
                     (click)="refreshDeployHistory()"
                     title="Recargar historial"
                   >
@@ -1172,18 +1143,9 @@
                 </p>
 
                 @if (deployHistory().length === 0) {
-                  <div class="empty-state" style="padding: 2rem 0; text-align: center">
-                    <i
-                      class="bi bi-inbox"
-                      style="font-size: 2rem; color: var(--platform-text-secondary); opacity: 0.5"
-                    ></i>
-                    <p
-                      style="
-                        margin-top: 0.75rem;
-                        color: var(--platform-text-secondary);
-                        font-size: 0.9rem;
-                      "
-                    >
+                  <div class="empty-state sd-empty-compact">
+                    <i class="bi bi-inbox sd-empty-icon"></i>
+                    <p class="sd-deploy-history-empty">
                       Aún no hay despliegues registrados para esta tienda.
                     </p>
                   </div>
@@ -1437,7 +1399,7 @@
                   <div class="skeleton--w-45 skeleton skeleton--text"></div>
                 </div>
               } @else if (logsEntries().length === 0 && !logsLoading() && !logsError()) {
-                <div class="empty-state" style="padding: 3rem 1.5rem; text-align: center">
+                <div class="empty-state sd-empty-roomy">
                   <i class="bi bi-journal-check fs-1 text-muted d-block mb-2"></i>
                   <h4 class="h6 mb-1 text-muted">No se registraron eventos en este período</h4>
                   <p class="mb-0 text-muted small">
@@ -1615,7 +1577,7 @@
             </div>
           </div>
           @if (saveError()) {
-            <p class="action-error" style="margin: 0.75rem 0 0">{{ saveError() }}</p>
+            <p class="action-error sd-action-error-flush">{{ saveError() }}</p>
           }
           <div class="modal__actions">
             <button type="button" class="btn btn-secondary" (click)="showEditModal.set(false)">
@@ -1643,7 +1605,7 @@
           La tienda <strong>{{ store()!.name }}</strong> quedará suspendida y
           <strong>no recibirá más deploys</strong> hasta que la reactives.
         </p>
-        <div class="form-group" style="margin: 1rem 0">
+        <div class="form-group sd-form-extra">
           <label class="form-label">
             Escribí <code>{{ store()!.firebaseProjectId }}</code> para confirmar:
           </label>
@@ -1689,7 +1651,7 @@
           Esta acción <strong>no se puede deshacer</strong>: se borran Firestore, Auth, Storage y
           Hosting.
         </p>
-        <div class="form-group" style="margin: 1rem 0">
+        <div class="form-group sd-form-extra">
           <label class="form-label">
             Escribí <code>{{ store()!.slug }}</code> para confirmar:
           </label>
@@ -1819,7 +1781,7 @@
       <a routerLink="/stores">← Volver a tiendas</a>
     </div>
     <div class="detail-card text-center py-5">
-      <i class="bi bi-exclamation-triangle text-warning" style="font-size: 2.5rem"></i>
+      <i class="bi bi-exclamation-triangle text-warning sd-error-icon"></i>
       <h3 class="mt-3 text-white">Tienda no encontrada</h3>
       <p class="text-muted">
         No se encontró ninguna tienda con el identificador solicitado o fue eliminada.
