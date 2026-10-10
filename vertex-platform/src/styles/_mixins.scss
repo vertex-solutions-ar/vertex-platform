@@ -1,0 +1,74 @@
+// ══════════════════════════════════════════════════════════════════════════
+// Mixins — breakpoints mobile-first y helpers de layout
+//
+// Los componentes deben escribir `@include from(md) { ... }` en vez de repetir
+// `@media (max-width: 768px)`: así el responsive se piensa desde el móvil y los
+// 8 stylesheets que hoy no tienen un solo breakpoint pueden adoptarlo sin copiar.
+// ══════════════════════════════════════════════════════════════════════════
+
+@use 'sass:map';
+
+$breakpoints: (
+  xs: 0,
+  sm: 480px,
+  md: 768px,
+  lg: 1024px,
+  xl: 1440px,
+);
+
+/// Aplica estilos desde el breakpoint hacia arriba (mobile-first).
+@mixin from($name) {
+  $min: map.get($breakpoints, $name);
+
+  @if $min == null {
+    @error "Breakpoint desconocido: #{$name}";
+  } @else if $min == 0 {
+    @content;
+  } @else {
+    @media (min-width: $min) {
+      @content;
+    }
+  }
+}
+
+/// Aplica estilos por debajo del breakpoint (uso defensivo para parches existentes).
+@mixin until($name) {
+  $max: map.get($breakpoints, $name);
+
+  @if $max == null {
+    @error "Breakpoint desconocido: #{$name}";
+  } @else if $max == 0 {
+    @content;
+  } @else {
+    @media (max-width: ($max - 1px)) {
+      @content;
+    }
+  }
+}
+
+/// Superficie de tarjeta estándar (equivalente al `.detail-card`/`.glass-card`).
+@mixin card-surface {
+  background: var(--platform-card-bg);
+  border: 1px solid var(--platform-card-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--platform-shadow-1);
+}
+
+/// Anillo de foco accesible y consistente en ambos temas.
+@mixin focus-ring {
+  outline: 2px solid var(--platform-accent-blue);
+  outline-offset: 2px;
+}
+
+/// Texto truncado a una línea.
+@mixin truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/// Contenedor de scroll horizontal para tablas en pantallas chicas.
+@mixin table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}

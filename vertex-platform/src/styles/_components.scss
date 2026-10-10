@@ -1,0 +1,420 @@
+@use 'mixins' as *;
+
+// ══════════════════════════════════════════════════════════════════════════
+// Componentes base compartidos
+//
+// Antes `.btn`, `.btn-primary`, `.btn-secondary`, `.badge`, `.form-control`,
+// `.form-select` y `.badge--*` se redefinían en cada componente (stores-list,
+// store-detail, store-create, team, subscriptions, infrastructure) con valores
+// distintos, y las pantallas que no las definían (store-detail-domains,
+// store-detail-payments, alerts, subscription-success) quedaban sin estilo.
+//
+// Acá vive la definición base. Un componente que necesite una variante usará
+// modificadores (`--x`) en vez de redeclarar la clase base.
+// ══════════════════════════════════════════════════════════════════════════
+
+/* ── Botones ──────────────────────────────────────────────────────────────── */
+.btn,
+.btn-primary,
+.btn-secondary,
+.btn-danger,
+.btn-warning,
+.btn-refresh,
+.btn-action-small,
+.btn-icon,
+.btn-logout,
+.btn--sm,
+.btn-sm {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.btn {
+  padding: 0.55rem 1rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 500;
+  line-height: 1.2;
+  background: transparent;
+  color: var(--platform-text-primary);
+  transition:
+    background-color var(--transition-base),
+    border-color var(--transition-base),
+    color var(--transition-base),
+    transform var(--transition-base);
+
+  &:disabled,
+  &[disabled] {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.btn-sm,
+.btn--sm {
+  padding: 0.35rem 0.7rem;
+  font-size: 0.8rem;
+}
+
+.btn-primary {
+  background: var(--platform-accent-gradient);
+  color: var(--platform-accent-text);
+  border-color: transparent;
+
+  &:hover:not(:disabled) {
+    background: var(--platform-accent-hover);
+  }
+}
+
+.btn-secondary {
+  background: var(--platform-hover-overlay);
+  border-color: var(--platform-card-border);
+  color: var(--platform-text-primary);
+
+  &:hover:not(:disabled) {
+    border-color: var(--platform-card-border-hover);
+  }
+}
+
+.btn-danger {
+  background: var(--platform-status-error-bg);
+  border-color: var(--platform-status-error-border);
+  color: var(--platform-status-error-text);
+}
+
+.btn-warning {
+  background: var(--platform-status-provisioning-bg);
+  border-color: var(--platform-status-provisioning-border);
+  color: var(--platform-status-provisioning-text);
+}
+
+.btn-icon {
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0;
+  border-radius: var(--radius-sm);
+  background: var(--platform-hover-overlay);
+  border-color: var(--platform-card-border);
+}
+
+/* ── Badges ───────────────────────────────────────────────────────────────── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: var(--radius-pill);
+  border: 1px solid transparent;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.badge--success {
+  background: var(--platform-status-active-bg);
+  border-color: var(--platform-status-active-border);
+  color: var(--platform-status-active-text);
+}
+
+.badge--warning {
+  background: var(--platform-status-provisioning-bg);
+  border-color: var(--platform-status-provisioning-border);
+  color: var(--platform-status-provisioning-text);
+}
+
+.badge--danger {
+  background: var(--platform-status-error-bg);
+  border-color: var(--platform-status-error-border);
+  color: var(--platform-status-error-text);
+}
+
+.badge--neutral {
+  background: var(--platform-status-suspended-bg);
+  border-color: var(--platform-status-suspended-border);
+  color: var(--platform-status-suspended-text);
+}
+
+.badge--primary {
+  background: var(--platform-status-active-bg);
+  border-color: var(--platform-status-active-border);
+  color: var(--platform-status-active-text);
+}
+
+/* ── Controles de formulario ──────────────────────────────────────────────── */
+.form-control,
+.form-select {
+  width: 100%;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--platform-input-border);
+  border-radius: var(--radius-sm);
+  background: var(--platform-input-bg);
+  color: var(--platform-text-primary);
+  font-family: inherit;
+  font-size: 0.9rem;
+  transition:
+    border-color var(--transition-base),
+    box-shadow var(--transition-base),
+    background-color var(--transition-base);
+
+  &::placeholder {
+    color: var(--platform-text-muted);
+  }
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+
+  &:focus {
+    outline: none;
+    border-color: var(--platform-accent-purple);
+    box-shadow: 0 0 0 3px var(--platform-focus-ring);
+  }
+}
+
+.form-select {
+  appearance: none;
+  padding-right: 2.25rem;
+  background-image:
+    linear-gradient(45deg, transparent 50%, currentColor 50%),
+    linear-gradient(135deg, currentColor 50%, transparent 50%);
+  background-position:
+    calc(100% - 1.15rem) calc(50% + 0.15rem),
+    calc(100% - 0.85rem) calc(50% + 0.15rem);
+  background-size:
+    0.4rem 0.4rem,
+    0.4rem 0.4rem;
+  background-repeat: no-repeat;
+}
+
+.form-label {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--platform-text-secondary);
+}
+
+/* ── Feedback async (convención de docs/ux-guidelines.md) ────────────────── */
+.feedback {
+  padding: 0.6rem 0.75rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--platform-card-border);
+  font-size: 0.85rem;
+}
+
+.feedback--error {
+  background: var(--platform-status-error-bg);
+  border-color: var(--platform-status-error-border);
+  color: var(--platform-status-error-text);
+}
+
+.feedback--warning {
+  background: var(--platform-status-provisioning-bg);
+  border-color: var(--platform-status-provisioning-border);
+  color: var(--platform-status-provisioning-text);
+}
+
+.feedback--success {
+  background: var(--platform-status-active-bg);
+  border-color: var(--platform-status-active-border);
+  color: var(--platform-status-active-text);
+}
+
+/* ── Superficies glass ────────────────────────────────────────────────────── */
+.glass-card {
+  background: var(--platform-card-bg);
+  border: 1px solid var(--platform-card-border);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-radius: var(--radius-lg);
+  transition:
+    border-color var(--transition-base),
+    box-shadow var(--transition-base),
+    transform var(--transition-base);
+}
+
+.glass-modal {
+  background: var(--platform-glass-modal-bg);
+  border: 1px solid var(--platform-card-border);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  box-shadow:
+    0 24px 64px -12px rgba(0, 0, 0, 0.65),
+    0 0 40px 0 rgba(79, 70, 229, 0.05);
+}
+
+.glass-card:hover,
+.detail-card:hover {
+  border-color: var(--platform-card-border-hover);
+  box-shadow:
+    var(--platform-shadow-card),
+    0 0 0 1px hsla(244, 75%, 64%, 0.08);
+}
+
+.detail-card,
+.glass-card,
+.card,
+.panel,
+.store-card,
+.pricing-plan-card,
+.guidance-banner,
+.kpi-card,
+.op-control-card {
+  box-shadow: var(--platform-shadow-1);
+}
+
+/* ── Spinners (complementan <app-spinner>) ───────────────────────────────── */
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid hsla(38, 95%, 62%, 0.4);
+  border-top-color: var(--platform-warning);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+.spinner-sm {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  vertical-align: middle;
+  margin-right: 0.25rem;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ── Skeletons (patrón de docs/ux-guidelines.md) ─────────────────────────── */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--platform-hover-overlay) 25%,
+    color-mix(in srgb, var(--platform-text-muted) 22%, transparent) 50%,
+    var(--platform-hover-overlay) 75%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.4s ease infinite;
+}
+
+.skeleton-select {
+  height: 42px;
+  min-height: 42px;
+  width: 100%;
+  border-radius: var(--radius-sm);
+}
+
+.skeleton-btn {
+  height: 42px;
+  min-height: 42px;
+  min-width: 170px;
+  border-radius: var(--radius-sm);
+}
+
+@keyframes skeleton-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* ── Tablas base ─────────────────────────────────────────────────────────── */
+table.table {
+  width: 100%;
+  border-collapse: collapse;
+
+  thead th {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--platform-text-muted);
+    font-weight: 600;
+    border-color: var(--platform-card-border);
+  }
+
+  tbody tr {
+    transition: background-color var(--transition-base);
+
+    &:hover {
+      background: hsla(244, 75%, 64%, 0.04);
+    }
+  }
+}
+
+/* ── Contenedores de página ──────────────────────────────────────────────── */
+.page-container,
+.detail-container,
+.team-page {
+  width: 100%;
+  margin: 0 auto;
+}
+
+/* Cabecera de página compartida (Tiendas, Equipo, Suscripciones, Infraestructura):
+   título + acción principal, que en mobile debe apilarse y ocupar todo el ancho.
+   Estas reglas vivían sueltas en el `styles.scss` monolítico y se perdieron al
+   partir el archivo; vuelven acá, que es su lugar compartido. */
+@include until(md) {
+  .page-title {
+    font-size: 1.4rem;
+  }
+
+  .page-top {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .page-top .btn,
+  .page-top .btn-primary {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* Barra de estadísticas de la lista de tiendas: chips 2×2 en móvil y en una
+   columna en pantallas muy angostas. */
+@include until(sm) {
+  .stats-bar {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .stat-chip {
+    justify-content: center;
+  }
+}
+
+@include until(xs) {
+  .stats-bar {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── Red de seguridad responsive global ─────────────────────────────────── */
+@include until(md) {
+  .modal {
+    max-width: 92vw;
+    max-height: 88vh;
+    overflow-y: auto;
+  }
+}
+
+button,
+a,
+.card,
+.detail-card {
+  transition-duration: 0.15s;
+}

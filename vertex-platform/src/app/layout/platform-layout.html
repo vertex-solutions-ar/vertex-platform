@@ -1,3 +1,6 @@
+<!-- Skip link: primer elemento tabulable, visible sólo con foco de teclado. -->
+<a class="skip-link" href="#platform-content">Saltar al contenido</a>
+
 <div class="platform-shell">
   <div
     class="platform-backdrop"
@@ -6,7 +9,13 @@
     aria-hidden="true"
   ></div>
 
-  <aside class="platform-sidebar" [class.sidebar-open]="isSidebarOpen()">
+  <aside
+    id="platform-sidebar"
+    class="platform-sidebar"
+    [class.sidebar-open]="isSidebarOpen()"
+    [attr.inert]="isSidebarInert() ? '' : null"
+    aria-label="Navegación principal"
+  >
     <div class="sidebar-header">
       <span class="sidebar-logo">Vertex</span>
       <span class="sidebar-tagline">Platform</span>
@@ -18,10 +27,11 @@
         class="nav-item"
         routerLink="/stores"
         routerLinkActive="nav-item--active"
+        ariaCurrentWhenActive="page"
         [routerLinkActiveOptions]="{ exact: false }"
         (click)="closeSidebar()"
       >
-        <i class="bi bi-shop-window"></i>
+        <i class="bi bi-shop-window" aria-hidden="true"></i>
         <span>Tiendas</span>
       </a>
 
@@ -30,9 +40,10 @@
           class="nav-item"
           routerLink="/settings/subscriptions"
           routerLinkActive="nav-item--active"
+          ariaCurrentWhenActive="page"
           (click)="closeSidebar()"
         >
-          <i class="bi bi-cash-stack"></i>
+          <i class="bi bi-cash-stack" aria-hidden="true"></i>
           <span>Suscripciones SaaS</span>
         </a>
 
@@ -41,9 +52,10 @@
           class="nav-item"
           routerLink="/settings/infrastructure"
           routerLinkActive="nav-item--active"
+          ariaCurrentWhenActive="page"
           (click)="closeSidebar()"
         >
-          <i class="bi bi-server"></i>
+          <i class="bi bi-server" aria-hidden="true"></i>
           <span>Infraestructura GCP</span>
         </a>
 
@@ -51,9 +63,10 @@
           class="nav-item"
           routerLink="/settings/alerts"
           routerLinkActive="nav-item--active"
+          ariaCurrentWhenActive="page"
           (click)="closeSidebar()"
         >
-          <i class="bi bi-shield-exclamation"></i>
+          <i class="bi bi-shield-exclamation" aria-hidden="true"></i>
           <span>Centro de Alertas</span>
         </a>
 
@@ -62,9 +75,10 @@
           class="nav-item"
           routerLink="/settings/team"
           routerLinkActive="nav-item--active"
+          ariaCurrentWhenActive="page"
           (click)="closeSidebar()"
         >
-          <i class="bi bi-people"></i>
+          <i class="bi bi-people" aria-hidden="true"></i>
           <span>Equipo</span>
         </a>
       }
@@ -72,20 +86,31 @@
 
     <div class="sidebar-footer">
       <div class="user-row">
-        <div class="user-avatar">{{ userInitial() }}</div>
+        <div class="user-avatar" aria-hidden="true">{{ userInitial() }}</div>
         <span class="user-email">{{ auth.user()?.email }}</span>
       </div>
-      <button class="btn-logout" (click)="logout()">
-        <i class="bi bi-box-arrow-right"></i>
+      <button type="button" class="btn-logout" (click)="logout()">
+        <i class="bi bi-box-arrow-right" aria-hidden="true"></i>
         Cerrar sesión
       </button>
     </div>
   </aside>
 
-  <div class="platform-main" [class.platform-main--dimmed]="isSidebarOpen()">
+  <div
+    class="platform-main"
+    [class.platform-main--dimmed]="isSidebarOpen()"
+    [attr.inert]="isMainInert() ? '' : null"
+  >
     <header class="platform-header">
-      <button class="menu-toggle" (click)="toggleSidebar()" aria-label="Abrir menú">
-        <i class="bi bi-list"></i>
+      <button
+        type="button"
+        class="menu-toggle"
+        (click)="toggleSidebar()"
+        [attr.aria-label]="isSidebarOpen() ? 'Cerrar menú' : 'Abrir menú'"
+        [attr.aria-expanded]="isSidebarOpen()"
+        aria-controls="platform-sidebar"
+      >
+        <i class="bi" [class.bi-x-lg]="isSidebarOpen()" [class.bi-list]="!isSidebarOpen()"></i>
       </button>
       <span class="header-brand">Vertex Platform</span>
       @if (isDevEnv) {
@@ -100,7 +125,7 @@
           "
           title="Centro de Alertas"
         >
-          <i class="bi bi-bell-fill"></i>
+          <i class="bi bi-bell-fill" aria-hidden="true"></i>
           @if (openAlertsCount() > 0) {
             <span class="alert-bell__badge">{{
               openAlertsCount() > 99 ? '99+' : openAlertsCount()
@@ -108,6 +133,7 @@
           }
         </a>
         <button
+          type="button"
           class="theme-toggle"
           (click)="theme.toggle()"
           [attr.aria-label]="
@@ -116,15 +142,15 @@
           [title]="theme.resolved() === 'dark' ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro'"
         >
           @if (theme.resolved() === 'dark') {
-            <i class="bi bi-sun-fill"></i>
+            <i class="bi bi-sun-fill" aria-hidden="true"></i>
           } @else {
-            <i class="bi bi-moon-stars-fill"></i>
+            <i class="bi bi-moon-stars-fill" aria-hidden="true"></i>
           }
         </button>
       </div>
     </header>
 
-    <main class="platform-content">
+    <main class="platform-content" id="platform-content">
       <router-outlet />
     </main>
   </div>
