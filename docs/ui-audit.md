@@ -8,13 +8,13 @@ marcados con su fase. Los ítems sin fase asignada siguen abiertos.
 
 ## Progreso
 
-| Fase | Alcance                                                               | Estado                                                                                      |
-| ---- | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
-| 0    | Este informe + criterios                                              | ✅                                                                                          |
-| 1    | Fuente de despliegue (release/rama/commit) — no es UI, ver `agent.md` | ✅                                                                                          |
-| 2    | Capa de estilos compartida + `platform-layout` + `stores-list`        | ✅ cierra H-02, H-03 (parcial), H-04, H-05, H-08 (parcial) y H-09 (`layout`, `stores-list`) |
-| 3    | `store-detail` (decomposición + presupuesto de CSS)                   | pendiente                                                                                   |
-| 4    | `domains`/`payments` + demás pantallas + barrido a11y                 | pendiente (H-01 corregido en el informe)                                                    |
+| Fase | Alcance                                                                       | Estado                                                                                      |
+| ---- | ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| 0    | Este informe + criterios                                                      | ✅                                                                                          |
+| 1    | Fuente de despliegue (release/rama/commit) — no es UI, ver `agent.md`         | ✅                                                                                          |
+| 2    | Capa de estilos compartida + `platform-layout` + `stores-list`                | ✅ cierra H-02, H-03 (parcial), H-04, H-05, H-08 (parcial) y H-09 (`layout`, `stores-list`) |
+| 3    | `store-detail`: 17 estilos inline → clases                                    | ✅ parcial — falta mover las reglas `dns-*`/`payments-*` y el presupuesto de CSS            |
+| 4    | `domains`/`payments`, breakpoints faltantes (H-09) y barrido a11y (H-11…H-16) | ✅                                                                                          |
 
 Superficie auditada: **~6 500 líneas de template (16 `.html` + 4 inline)** y
 **~12 100 líneas de SCSS (15 archivos)**, más `styles.scss`.
@@ -97,11 +97,17 @@ con los tokens y las clases por componente). Alternativa descartada documentada 
 
 ## 3. Responsive
 
-- **H-09 (alto)** — Sólo 8 de 15 stylesheets tienen media queries:
-  `platform-layout`, `team`, `subscription-checkout`, `store-create`, `custom-vertical-modal`,
-  `store-detail`, `stores-list`, `rubro-selector`.
-  **Sin ninguna**: `alerts`, `infrastructure`, `shard-status-modal`, `subscriptions`,
-  `seed-store-modal`, `subscription-success`, y los dos componentes sin stylesheet (H-01).
+- **H-09 (medio)** — Sólo 8 de 15 stylesheets tenían media queries: `platform-layout`, `team`,
+  `subscription-checkout`, `store-create`, `custom-vertical-modal`, `store-detail`,
+  `stores-list`, `rubro-selector`. Los otros 6 no tenían ninguna, pero **no todos estaban
+  rotos**: las rejillas ya usaban `grid-template-columns: repeat(auto-fit, …)` y las
+  dimensiones aparentemente fijas eran `max-width`, así que se reacomodaban solas. Lo que sí
+  fallaba, verificado caso por caso:
+  - filas flex sin `flex-wrap` que se apretaban en mobile (`.tab-nav`, `.section-controls`,
+    `.kpi-card`, `.alerts-item`, `.modal-card__header/__footer`, `.action-buttons`, …);
+  - `.store-search-box` con `min-width: 280px`, que desborda en 360 px;
+  - modales sin ajuste (`.modal-card` 620 px, `.success-card` 580 px).
+    **Cerrado en la fase 4** con bloques `until(md)`/`until(sm)` en esos 6 stylesheets.
 - **H-10 (medio)** — Las tablas de datos (`store-detail` deploy history, deployment table,
   `stores-list`, `infrastructure`) no tienen estrategia móvil común: algunas usan scroll
   horizontal, otras desbordan. Falta el patrón tabla↔tarjeta en mobile.
