@@ -6,6 +6,16 @@ Alcance: **solo la app `platform/vertex-platform`** (panel SaaS). No incluye `st
 Estado: **hallazgos verificados en código**. Las fases 2–4 de refactor cierran los ítems
 marcados con su fase. Los ítems sin fase asignada siguen abiertos.
 
+## Progreso
+
+| Fase | Alcance                                                               | Estado                                                                                      |
+| ---- | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| 0    | Este informe + criterios                                              | ✅                                                                                          |
+| 1    | Fuente de despliegue (release/rama/commit) — no es UI, ver `agent.md` | ✅                                                                                          |
+| 2    | Capa de estilos compartida + `platform-layout` + `stores-list`        | ✅ cierra H-02, H-03 (parcial), H-04, H-05, H-08 (parcial) y H-09 (`layout`, `stores-list`) |
+| 3    | `store-detail` (decomposición + presupuesto de CSS)                   | pendiente                                                                                   |
+| 4    | `domains`/`payments` + demás pantallas + barrido a11y                 | pendiente (H-01 corregido en el informe)                                                    |
+
 Superficie auditada: **~6 500 líneas de template (16 `.html` + 4 inline)** y
 **~12 100 líneas de SCSS (15 archivos)**, más `styles.scss`.
 
@@ -30,11 +40,24 @@ definición local** (verificado con `grep` sobre todos los `.scss`):
 
 Consecuencias verificadas:
 
-- **H-01 (crítico)** — `store-detail-payments` (1 128 líneas de template) y
-  `store-detail-domains` (556) son componentes `standalone` con `templateUrl` y
-  **sin `styleUrls`**. Toda su maquetación (27× `d-flex`, 21× `align-items-center`,
-  12× `text-muted`, 12× `justify-content-between` en pagos) no produce ningún efecto:
-  las pestañas **Dominios** y **Pagos** se renderizan sin estilos.
+- **H-01 (alto)** — `store-detail-domains` y `store-detail-payments` **no tienen stylesheet
+  propio**: ambos declaran `styleUrl: '../store-detail/store-detail.scss'`, o sea que las dos
+  pestañas dependen del stylesheet de 4 831 líneas de su componente hermano. Verificado contra el
+  CSS compilado, hay clases usadas **sin ninguna regla**:
+  - `domains`: `dns-actions-bar`, `dns-meta-info`.
+  - `payments`: `accordion`, `accordion-item`, `accordion-header`, `accordion-body`,
+    `accordion-collapse`, `collapse`, `collapsed`, `master-sub-controls-accordion`,
+    `btn-link`, `btn-outline-info`, `spinner-border`, `spinner-border-sm`, `bg-black-20`,
+    `border-white-10`, `font-weight-bold`, `internal-store-banner`,
+    `sub-link-option--monthly`, `text-xxs`, `tracking-wider`.
+  - **Variantes de alerta rotas en ambas**: los templates usan `alert--error` /
+    `alert--success` y el stylesheet define `.alert-error` / `.alert-success`. (Las variantes
+    con `--` existen en otros componentes, así que el defecto sólo se ve en estas dos pestañas.)
+  - **Bug funcional**: el acordeón "Gestión y Facturación de la Tienda" usa
+    `data-bs-toggle="collapse"` (Bootstrap JS, que no está cargado) con
+    `aria-expanded="false"` fijo → **la sección nunca se puede abrir**.
+  - Riesgo de mantenimiento: cualquier cambio en `store-detail.scss` puede romper estas dos
+    pantallas sin que nada lo detecte.
 - **H-02 (crítico)** — Espaciado inconsistente en todo el panel: 185 utilidades de
   margen/padding inertes → separaciones que dependen del `margin` por defecto del navegador.
 - **H-03 (alto)** — El `display:flex` faltante se parcheó con `style=""` inline:
