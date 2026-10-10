@@ -1,3 +1,4 @@
+@use '../../../../../styles/mixins' as *;
 :host {
   display: block;
 }
@@ -241,4 +242,23 @@
   font-size: 0.72rem;
   font-weight: 800;
   color: var(--platform-text-muted);
+}
+
+/* ═══ Responsive (H-09) ═══════════════════════════════════════════════════ */
+@include until(md) {
+  .alerts-group__head,
+  .alerts-item {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+}
+
+@include until(sm) {
+  .alerts-list {
+    gap: 0.6rem;
+  }
+
+  .alerts-item {
+    align-items: flex-start;
+  }
 }

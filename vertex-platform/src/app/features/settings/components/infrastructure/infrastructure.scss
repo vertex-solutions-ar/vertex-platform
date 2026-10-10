@@ -1,3 +1,4 @@
+@use '../../../../../styles/mixins' as *;
 :host {
   display: block;
 }
@@ -719,5 +720,50 @@
   &:hover {
     transform: translateY(-1px);
     box-shadow: var(--platform-shadow-2);
+  }
+}
+
+/* ═══ Responsive (H-09) ═══════════════════════════════════════════════════
+   La página no tenía un solo breakpoint. Las rejillas usan `auto-fit`, así que
+   ya se reacomodan; lo que faltaba eran las filas flex que no envuelven y el
+   ancho mínimo de la caja de búsqueda, que desbordaba en 360 px. */
+@include until(md) {
+  .tab-nav {
+    flex-wrap: wrap;
+    gap: 0.35rem;
+  }
+
+  .tab-btn {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+
+  .section-controls,
+  .guidance-banner,
+  .toast-banner {
+    flex-wrap: wrap;
+  }
+
+  .search-box {
+    width: 100%;
+  }
+}
+
+@include until(sm) {
+  .page-top {
+    min-width: 0;
+  }
+
+  .search-box {
+    min-width: 0;
+  }
+
+  .kpi-card {
+    flex-wrap: wrap;
+  }
+
+  .shards-grid,
+  .guide-points {
+    grid-template-columns: 1fr;
   }
 }
