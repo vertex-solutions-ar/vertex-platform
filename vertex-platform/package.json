@@ -95,8 +95,8 @@
     "husky": "^9.1.7",
     "jsdom": "^28.1.0",
     "lint-staged": "^17.5.1",
-    "prettier": "^3.9.9",
-    "start-server-and-test": "^3.0.12",
+    "prettier": "^3.9.10",
+    "start-server-and-test": "^3.0.13",
     "tsx": "^4.23.15",
     "typescript": "^6.0.3",
     "vitest": "^4.1.11"
