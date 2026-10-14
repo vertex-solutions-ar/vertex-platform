@@ -43,6 +43,8 @@ export interface DeploySourceStore {
   environment?: 'development' | 'production';
   firebaseProjectId?: string;
   runtimeProjectId?: string;
+  /** Shard de la tienda: `shard-dev-*` / `shard-development-*` son de desarrollo. */
+  shardId?: string | null;
   templateVersion?: string;
   autoUpdate?: boolean;
   /** Opt-in explícito para habilitar despliegues de prueba fuera de development. */
@@ -56,14 +58,29 @@ const RELEASE_VERSION_PATTERN = /^\d+\.\d+\.\d+$/;
 const KINDS: readonly DeploySourceKind[] = ['release', 'branch', 'commit'];
 
 /**
- * ¿La tienda es de entorno development? Es la misma señal que usa la política de
- * actualización: `environment === 'development'` o un projectId `*-dev`.
+ * ¿La tienda es de entorno development (puede recibir ramas/commits)?
+ *
+ * Ninguna de las señales "de libro" alcanza — verificado contra las tiendas reales:
+ *  - `environment` está **siempre vacío** en `stores/*` (nadie lo escribe).
+ *  - `firebaseProjectId` es un shard `vtx-sd-xxxx`, que NO contiene `-dev` ni en dev.
+ * Por eso la señal confiable es el **shard** (`shard-development-*` / `shard-dev-*`;
+ * los de producción se llaman `shard-production-*`), más el opt-in por tienda.
+ *
+ * A propósito NO se usa el entorno de la plataforma como permiso global: si se hiciera,
+ * una tienda de producción abierta desde el panel de desarrollo podría compilar
+ * `develop`. Cada tienda se evalúa por sus propias señales.
  */
-export function isStoreDev(store: DeploySourceStore): boolean {
-  return (
-    store.environment === 'development' ||
-    String(store.firebaseProjectId || store.runtimeProjectId || '').includes('-dev')
-  );
+export function isStoreDev(store: DeploySourceStore, platformEnv?: string): boolean {
+  // Emuladores / desarrollo local: todo es entorno de prueba.
+  if (platformEnv === 'local') return true;
+  if (store.allowTestDeployments === true) return true;
+  if (store.environment === 'development') return true;
+
+  const project = String(store.firebaseProjectId || store.runtimeProjectId || '');
+  if (project.includes('-dev')) return true;
+
+  const shard = String(store.shardId || '').toLowerCase();
+  return shard.startsWith('shard-dev');
 }
 
 /**
@@ -111,6 +128,7 @@ export function parseDeploySourceRequest(
 export function assertDeploySourceAllowed(
   store: DeploySourceStore,
   request: DeploySourceRequest,
+  platformEnv?: string,
 ): void {
   if (request.kind === 'release') {
     const normalized = normalizeReleaseVersion(request.value);
@@ -152,7 +170,7 @@ export function assertDeploySourceAllowed(
     }
   }
 
-  if (isStoreDev(store) || store.allowTestDeployments === true) {
+  if (isStoreDev(store, platformEnv)) {
     return;
   }
 
@@ -301,15 +319,19 @@ export function resolveDefaultDeploySource(
     ? `v${normalizeReleaseVersion(store.templateVersion)}`
     : null;
 
-  if (store.autoUpdate === true && platformEnv === 'development' && !isStoreDev(store)) {
-    // Tienda de producción dentro del sandbox: jamás compila develop.
-    return pinnedTag ? releaseSource(pinnedTag) : branchSource('main');
-  }
-
   if (store.autoUpdate === true) {
+    // En el sandbox sólo una tienda de desarrollo sigue la rama de trabajo; una tienda de
+    // producción abierta desde el panel de desarrollo jamás compila `develop`.
+    if (platformEnv === 'development') {
+      if (isStoreDev(store, platformEnv)) {
+        return branchSource('develop');
+      }
+      return pinnedTag ? releaseSource(pinnedTag) : branchSource('main');
+    }
     return branchSource(targetRef);
   }
 
+  // Sin autoUpdate la tienda queda clavada en su release fijada (o la rama del entorno).
   return pinnedTag ? releaseSource(pinnedTag) : branchSource(targetRef);
 }
 
@@ -362,7 +384,7 @@ export function resolveReactivationDeploySource(
   const stored = store.deploySource;
   if (stored?.kind && stored.ref && KINDS.includes(stored.kind)) {
     try {
-      assertDeploySourceAllowed(store, { kind: stored.kind, value: stored.ref });
+      assertDeploySourceAllowed(store, { kind: stored.kind, value: stored.ref }, platformEnv);
       const kind = stored.kind;
       return {
         kind,

@@ -228,11 +228,22 @@ export class StoreDetailDeployService {
 
     const kind = this.kind();
 
-    // "Re-desplegar la release activa" no necesita fuente explícita: deja que la política
-    // de la tienda decida (autoUpdate / versión fijada).
     if (kind === 'release') {
       const isActive = (store.templateVersion || '').replace(/^v/, '') === value;
-      await this.run(store.id, isActive ? undefined : { kind, value }, false);
+
+      // Cambiar de release es un **cambio de versión**, no un re-despliegue: es la única
+      // vía que actualiza `templateVersion`/`appVersion`/`schemaVersion` de la tienda
+      // (evento `update-store-version` -> `completeVersionUpdate`). Con `redeployStore` el
+      // sitio se recompilaba pero la tienda seguía mostrando la versión vieja: la versión
+      // nunca se actualizaba.
+      if (!isActive) {
+        await this.run(store.id, undefined, false, value);
+        return;
+      }
+
+      // Misma release: re-desplegarla no necesita fuente explícita, deja que la política
+      // de la tienda decida (autoUpdate / versión fijada).
+      await this.run(store.id, undefined, false);
       return;
     }
 
@@ -279,10 +290,18 @@ export class StoreDetailDeployService {
     }
   }
 
+  /**
+   * Dispara el despliegue y normaliza el estado del panel.
+   *
+   * `targetVersion` presente = cambio de versión (`updateStoreVersion`, único camino que
+   * re-escribe `templateVersion`). Sin él, es un re-despliegue de la fuente pedida o de la
+   * política estándar de la tienda.
+   */
   private async run(
     storeId: string,
     request: DeploySourceRequest | undefined,
     isTest: boolean,
+    targetVersion?: string,
   ): Promise<void> {
     this.orchestration.setDeployDismissed(storeId, false);
     this.orchestration.setUserInitiated(storeId, true, Date.now());
@@ -290,9 +309,15 @@ export class StoreDetailDeployService {
     this.orchestration.setStoreUpdating(storeId, true);
     this.orchestration.setLocalDeployError(storeId, '');
     try {
-      await this.storesService.redeployStore(storeId, request);
+      if (targetVersion) {
+        await this.storesService.updateStoreVersion(storeId, targetVersion);
+      } else {
+        await this.storesService.redeployStore(storeId, request);
+      }
       if (isTest) {
         this.orchestration.actionSuccess.set('Despliegue de prueba iniciado.');
+      } else if (targetVersion) {
+        this.orchestration.actionSuccess.set(`Actualización a v${targetVersion} iniciada.`);
       }
     } catch (err) {
       this.orchestration.setLocalDeployError(

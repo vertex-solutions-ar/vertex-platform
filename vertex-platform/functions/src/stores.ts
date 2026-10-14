@@ -749,21 +749,24 @@ export const redeployStore = onCall<RedeployStorePayload>(
       firebaseProjectId?: string;
       runtimeProjectId?: string;
       runtimeMode?: string;
+      shardId?: string | null;
       templateVersion?: string;
       autoUpdate?: boolean;
       environment?: 'development' | 'production';
       allowTestDeployments?: boolean;
     };
 
+    const platformEnv = resolvePlatformEnvironment(PLATFORM_PROJECT);
+
     // Fuente pedida explícitamente (validada contra GitHub) o política estándar de la tienda.
     const requested = parseDeploySourceRequest(request.data.source, request.data.ref);
     if (requested) {
-      assertDeploySourceAllowed(store, requested);
+      assertDeploySourceAllowed(store, requested, platformEnv);
     }
 
     const source: ResolvedDeploySource = requested
       ? await resolveDeploySource(requested)
-      : resolveDefaultDeploySource(store, resolvePlatformEnvironment(PLATFORM_PROJECT));
+      : resolveDefaultDeploySource(store, platformEnv);
 
     await db
       .collection('stores')
@@ -965,6 +968,7 @@ export const activateStore = onCall<{ storeId: string }>(
       environment?: 'development' | 'production';
       firebaseProjectId?: string;
       runtimeProjectId?: string;
+      shardId?: string | null;
       allowTestDeployments?: boolean;
       deploySource?: { kind?: 'release' | 'branch' | 'commit'; ref?: string };
     };

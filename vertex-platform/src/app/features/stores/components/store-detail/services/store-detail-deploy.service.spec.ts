@@ -22,6 +22,7 @@ describe('StoreDetailDeployService', () => {
     listTemplateVersions: ReturnType<typeof vi.fn>;
     listTemplateRefs: ReturnType<typeof vi.fn>;
     redeployStore: ReturnType<typeof vi.fn>;
+    updateStoreVersion: ReturnType<typeof vi.fn>;
     updateStore: ReturnType<typeof vi.fn>;
     resetStoreDeployStatus: ReturnType<typeof vi.fn>;
   };
@@ -42,6 +43,7 @@ describe('StoreDetailDeployService', () => {
         releases: [],
       }),
       redeployStore: vi.fn().mockResolvedValue(undefined),
+      updateStoreVersion: vi.fn().mockResolvedValue(undefined),
       updateStore: vi.fn().mockResolvedValue(undefined),
       resetStoreDeployStatus: vi.fn().mockResolvedValue(undefined),
     };
@@ -58,6 +60,8 @@ describe('StoreDetailDeployService', () => {
     service = TestBed.inject(StoreDetailDeployService);
     TestBed.inject(StoreDetailOrchestrationService);
   });
+
+  const orchestration = () => TestBed.inject(StoreDetailOrchestrationService);
 
   const sync = async (store: Store | null): Promise<void> => {
     service.syncStore(store);
@@ -97,7 +101,7 @@ describe('StoreDetailDeployService', () => {
   describe('borrador del selector', () => {
     it('default: release fijada y rama develop', async () => {
       await service.branches(); // fuerza la carga previa de ramas
-      await TestBed.inject(StoreDetailOrchestrationService).loadTemplateRefs();
+      await orchestration().loadTemplateRefs();
       await sync(buildStore());
       expect(service.kind()).toBe('release');
       expect(service.value()).toBe('0.9.5');
@@ -143,7 +147,7 @@ describe('StoreDetailDeployService', () => {
 
     it('bloquea todos los modos mientras hay un despliegue en curso', async () => {
       await sync(buildStore({ environment: 'development' }));
-      TestBed.inject(StoreDetailOrchestrationService).setStoreDeploying('store-A', true);
+      orchestration().setStoreDeploying('store-A', true);
       expect(service.isModeDisabled('release')).toBe(true);
       expect(service.isModeDisabled('branch')).toBe(true);
       expect(service.isBusy()).toBe(true);
@@ -167,15 +171,17 @@ describe('StoreDetailDeployService', () => {
       expect(service.pendingDeploy()).toBeNull();
     });
 
-    it('cambiar de release manda la fuente explícita', async () => {
+    it('cambiar de release llama a updateStoreVersion (no a redeployStore)', async () => {
+      // Regresión: con `redeployStore` el sitio se recompilaba pero `templateVersion`
+      // nunca se re-escribía, así que la tienda seguía mostrando la versión vieja y
+      // "actualizar a v0.9.6" parecía no hacer nada.
       await sync(buildStore());
       service.setValue('0.9.6');
       await service.requestDeployment();
-      expect(storesServiceMock.redeployStore).toHaveBeenCalledWith('store-A', {
-        kind: 'release',
-        value: '0.9.6',
-      });
+      expect(storesServiceMock.updateStoreVersion).toHaveBeenCalledWith('store-A', '0.9.6');
+      expect(storesServiceMock.redeployStore).not.toHaveBeenCalled();
       expect(service.pendingDeploy()).toBeNull();
+      expect(orchestration().actionSuccess()).toContain('v0.9.6');
     });
 
     it('una rama pide confirmación antes de desplegar', async () => {
@@ -239,13 +245,25 @@ describe('StoreDetailDeployService', () => {
     });
 
     it('un error del backend se refleja como error local del despliegue', async () => {
-      storesServiceMock.redeployStore.mockRejectedValueOnce(new Error('La rama "x" no existe'));
+      storesServiceMock.updateStoreVersion.mockRejectedValueOnce(
+        new Error('La versión v9.9.9 no existe'),
+      );
       await sync(buildStore());
-      service.setValue('0.9.6');
+      service.setValue('9.9.9');
       await service.requestDeployment();
-      const orchestration = TestBed.inject(StoreDetailOrchestrationService);
-      expect(orchestration.getLocalDeployError('store-A')).toContain('no existe');
-      expect(orchestration.isStoreUpdating('store-A')).toBe(false);
+      expect(orchestration().getLocalDeployError('store-A')).toContain('no existe');
+      expect(orchestration().isStoreUpdating('store-A')).toBe(false);
+    });
+
+    it('un error al re-desplegar también se refleja y libera el estado', async () => {
+      storesServiceMock.redeployStore.mockRejectedValueOnce(new Error('La rama "x" no existe'));
+      await sync(buildStore({ environment: 'development' }));
+      service.setKind('branch');
+      service.setValue('x');
+      await service.requestDeployment();
+      await service.confirmPendingDeploy();
+      expect(orchestration().getLocalDeployError('store-A')).toContain('no existe');
+      expect(orchestration().isStoreDeploying('store-A')).toBe(false);
     });
 
     it('marca la sesión como iniciada por el usuario y limpia el estado al terminar', async () => {
@@ -262,7 +280,7 @@ describe('StoreDetailDeployService', () => {
   describe('modo de rama manual', () => {
     it('al activarlo limpia el valor y al desactivarlo vuelve a develop', async () => {
       await sync(buildStore({ environment: 'development' }));
-      await TestBed.inject(StoreDetailOrchestrationService).loadTemplateRefs();
+      await orchestration().loadTemplateRefs();
       service.toggleCustomBranchMode(true);
       expect(service.customBranchMode()).toBe(true);
       expect(service.draft().branch).toBe('');
