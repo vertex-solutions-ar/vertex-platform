@@ -13,15 +13,32 @@ export const STOREFRONT_REPO = 'vertex-solutions-ar/ecommerce-vertex';
 const BRANCH_REF_PATTERN = /^[A-Za-z0-9._/-]+$/;
 const COMMIT_SHA_PATTERN = /^[0-9a-fA-F]{7,40}$/;
 
-/** ¿Es una tienda del entorno development? Misma señal que usa el backend. */
+/**
+ * ¿Es una tienda de entorno development? Debe reflejar exactamente las señales del backend
+ * (`functions/src/deployment-source.ts`):
+ *
+ *  - `environment` está **siempre vacío** en `stores/*` (verificado en dev y prod).
+ *  - `firebaseProjectId` es un shard `vtx-sd-xxxx`, sin `-dev` ni en el panel de desarrollo.
+ *  - La señal confiable es el **shard**: `shard-development-*` / `shard-dev-*`
+ *    (los de producción se llaman `shard-production-*`).
+ *
+ * Si esto se desalinea del backend, el panel habilita modos que la Cloud Function rechaza
+ * (o al revés): pasó exactamente eso y los modos Rama/Commit quedaron siempre deshabilitados.
+ */
 export function isStoreDevEnvironment(store: Store | null | undefined): boolean {
   if (!store) {
     return false;
   }
-  return (
-    store.environment === 'development' ||
-    String(store.firebaseProjectId || store.runtimeProjectId || '').includes('-dev')
-  );
+  if (store.environment === 'development') {
+    return true;
+  }
+  const project = String(store.firebaseProjectId || store.runtimeProjectId || '');
+  if (project.includes('-dev')) {
+    return true;
+  }
+  return String(store.shardId || '')
+    .toLowerCase()
+    .startsWith('shard-dev');
 }
 
 /** ¿Se puede desplegar ramas/commits en esta tienda? */
@@ -29,7 +46,7 @@ export function canDeployTestSources(store: Store | null | undefined): boolean {
   if (!store) {
     return false;
   }
-  return isStoreDevEnvironment(store) || store.allowTestDeployments === true;
+  return store.allowTestDeployments === true || isStoreDevEnvironment(store);
 }
 
 /** Un despliegue de prueba es cualquiera que no venga de un tag publicado. */

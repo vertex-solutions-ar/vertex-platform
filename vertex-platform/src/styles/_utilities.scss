@@ -265,6 +265,12 @@ $u5: 3rem;
   font-size: 0.875em;
 }
 
+/* Bootstrap usa `.h6` como clase de heading; se usaba sin definir. */
+.h6 {
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
 .fs-1 {
   font-size: 1.75rem;
 }
@@ -334,6 +340,11 @@ $u5: 3rem;
 /* `text-primary` es el color de marca del panel (no el azul de Bootstrap). */
 .text-primary {
   color: var(--platform-accent-purple);
+}
+
+/* Usada por el detalle de tienda y nunca definida. */
+.text-accent {
+  color: var(--platform-accent);
 }
 
 /* ── Tamaños ──────────────────────────────────────────────────────────────── */
