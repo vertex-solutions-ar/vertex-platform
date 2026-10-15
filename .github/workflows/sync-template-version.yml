@@ -20,7 +20,9 @@ jobs:
       - uses: actions/checkout@v7
         with:
           ref: develop
-          token: ${{ secrets.GITHUB_TOKEN }}
+          # GITHUB_TOKEN no puede crear PRs en este repo ('Allow GitHub Actions to create
+          # or approve pull requests' está deshabilitado), así que se usa ADMIN_PAT.
+          token: ${{ secrets.ADMIN_PAT }}
 
       - name: Configure git
         run: |
@@ -60,7 +62,7 @@ jobs:
       - name: Create PR with version bump
         if: env.ALREADY_UP_TO_DATE == 'false'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.ADMIN_PAT }}
         run: |
           BRANCH="chore/update-template-version-${VERSION}"
           git checkout -b "$BRANCH"
@@ -93,4 +95,13 @@ jobs:
           _Generado automáticamente por el workflow \`sync-template-version.yml\`_" \
             --base develop \
             --head "$BRANCH" \
-            --label "versioning" || echo "::warning::Could not create PR (label may not exist). PR created without label."
+            --label "versioning" 2>/dev/null \
+            || gh pr create \
+              --title "chore(versioning): update CURRENT_TEMPLATE_VERSION to v${VERSION}" \
+              --body "Actualización automática de CURRENT_TEMPLATE_VERSION a v${VERSION}." \
+              --base develop \
+              --head "$BRANCH" \
+              || {
+                echo "::error::No se pudo crear el PR de versión. La rama $BRANCH quedó pusheada; creá el PR a mano."
+                exit 1
+              }
