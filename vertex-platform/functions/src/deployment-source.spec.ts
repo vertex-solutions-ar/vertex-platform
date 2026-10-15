@@ -19,6 +19,17 @@ vi.mock('./helpers', () => ({
 const DEV_STORE = { environment: 'development' as const, firebaseProjectId: 'ecommerce-dev-01' };
 const PROD_STORE = { environment: 'production' as const, firebaseProjectId: 'ecommerce-vertex' };
 
+// Tienda real del panel: `environment` viene SIEMPRE vacío y el proyecto es un shard
+// `vtx-sd-*` (sin `-dev`). La única señal que distingue dev de prod es el shard.
+const DEV_SHARD_STORE = {
+  firebaseProjectId: 'vtx-sd-w5f87ci9',
+  shardId: 'shard-development-w5f87ci9',
+};
+const PROD_SHARD_STORE = {
+  firebaseProjectId: 'vtx-sd-5pcznadu',
+  shardId: 'shard-production-5pcznadu',
+};
+
 describe('isStoreDev', () => {
   it('detecta entorno development explícito', () => {
     expect(isStoreDev({ environment: 'development' })).toBe(true);
@@ -32,6 +43,25 @@ describe('isStoreDev', () => {
   it('no marca como dev una tienda de producción', () => {
     expect(isStoreDev(PROD_STORE)).toBe(false);
     expect(isStoreDev({})).toBe(false);
+  });
+
+  it('detecta el shard de desarrollo aunque environment venga vacío', () => {
+    // Regresión: las tiendas reales no tienen `environment` y su projectId es `vtx-sd-xxxx`,
+    // así que antes NINGUNA se consideraba dev y los modos rama/commit quedaban muertos.
+    expect(isStoreDev(DEV_SHARD_STORE)).toBe(true);
+    expect(isStoreDev(PROD_SHARD_STORE)).toBe(false);
+    expect(isStoreDev({ shardId: 'shard-dev-kk0pnfg6' })).toBe(true);
+    expect(isStoreDev({ shardId: 'shard-development-0b7aml14' })).toBe(true);
+  });
+
+  it('en emuladores locales todo es desplegable sin opt-in', () => {
+    expect(isStoreDev(PROD_SHARD_STORE, 'local')).toBe(true);
+  });
+
+  it('el panel de desarrollo NO habilita por sí solo una tienda de producción', () => {
+    // Si el entorno de la plataforma habilitara todo, una tienda de producción abierta
+    // desde el panel de desarrollo podría compilar `develop`.
+    expect(isStoreDev(PROD_SHARD_STORE, 'development')).toBe(false);
   });
 });
 
@@ -112,6 +142,21 @@ describe('assertDeploySourceAllowed', () => {
     expect(() =>
       assertDeploySourceAllowed(DEV_STORE, { kind: 'branch', value: 'feat/x' }),
     ).not.toThrow();
+  });
+
+  it('permite ramas en una tienda de shard de desarrollo', () => {
+    expect(() =>
+      assertDeploySourceAllowed(DEV_SHARD_STORE, { kind: 'branch', value: 'develop' }),
+    ).not.toThrow();
+    expect(() =>
+      assertDeploySourceAllowed(DEV_SHARD_STORE, { kind: 'commit', value: 'abc1234' }),
+    ).not.toThrow();
+  });
+
+  it('rechaza ramas en una tienda de shard de producción', () => {
+    expect(() =>
+      assertDeploySourceAllowed(PROD_SHARD_STORE, { kind: 'branch', value: 'develop' }),
+    ).toThrow(/no es de entorno development/);
   });
 
   it('permite ramas fuera de dev sólo con opt-in explícito', () => {

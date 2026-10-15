@@ -32,6 +32,34 @@ describe('isStoreDevEnvironment', () => {
   });
 });
 
+describe('detección de entorno de la tienda (regresión)', () => {
+  it('detecta el shard de desarrollo con environment vacío y projectId de shard', () => {
+    // Caso real: `environment` nunca está seteado y el projectId es `vtx-sd-xxxx`.
+    // Antes esto devolvía false y los modos Rama/Commit quedaban siempre deshabilitados.
+    const devShard = store({
+      firebaseProjectId: 'vtx-sd-w5f87ci9',
+      shardId: 'shard-development-w5f87ci9',
+    });
+    expect(isStoreDevEnvironment(devShard)).toBe(true);
+    expect(canDeployTestSources(devShard)).toBe(true);
+  });
+
+  it('no habilita una tienda en shard de producción', () => {
+    const prodShard = store({
+      firebaseProjectId: 'vtx-sd-5pcznadu',
+      shardId: 'shard-production-5pcznadu',
+    });
+    expect(isStoreDevEnvironment(prodShard)).toBe(false);
+    expect(canDeployTestSources(prodShard)).toBe(false);
+  });
+
+  it('acepta las variantes de nombre de shard de desarrollo', () => {
+    expect(isStoreDevEnvironment(store({ shardId: 'shard-dev-kk0pnfg6' }))).toBe(true);
+    expect(isStoreDevEnvironment(store({ shardId: 'shard-development-0b7aml14' }))).toBe(true);
+    expect(isStoreDevEnvironment(store({ shardId: 'shard-production-7vbtd8m0' }))).toBe(false);
+  });
+});
+
 describe('canDeployTestSources', () => {
   it('habilita dev y opt-in explícito', () => {
     expect(canDeployTestSources(store({ environment: 'development' }))).toBe(true);
