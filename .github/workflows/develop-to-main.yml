@@ -23,6 +23,7 @@ jobs:
       - name: Create or refresh PR and enable auto-merge
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ADMIN_TOKEN: ${{ secrets.ADMIN_PAT }}
           REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
@@ -31,15 +32,42 @@ jobs:
             echo "develop y main están iguales: nada para sincronizar"
             exit 0
           fi
-          NUM=$(gh pr list --repo "$REPO" --base main --head develop --state open --json number --jq '.[0].number // empty')
+
+          TITLE="chore(release): sync develop → main"
+          BODY="PR automático de sincronización **develop → main**. Se mergea solo (squash) cuando los checks pasan. No borra ramas protegidas."
+
+          list_pr() {
+            gh pr list --repo "$REPO" --base main --head develop --state open \
+              --json number --jq '.[0].number // empty'
+          }
+
+          NUM=$(list_pr)
+
           if [ -z "$NUM" ]; then
             echo "Creando PR develop → main"
-            gh pr create --repo "$REPO" --base main --head develop \
-              --title "chore(release): sync develop → main" \
-              --body "PR automático de sincronización **develop → main**. Se mergea solo (squash) cuando los checks pasan. No borra ramas protegidas." || true
-            NUM=$(gh pr list --repo "$REPO" --base main --head develop --state open --json number --jq '.[0].number // empty')
+            # El repo tiene deshabilitado "Allow GitHub Actions to create or approve pull
+            # requests", así que GH_TOKEN falla con createPullRequest. Se reintenta con
+            # ADMIN_PAT (igual que back-sync.yml) y, si tampoco puede, se avisa
+            # explícitamente en lugar de salir en silencio como antes.
+            if ! gh pr create --repo "$REPO" --base main --head develop \
+                 --title "$TITLE" --body "$BODY" 2>&1; then
+              if [ -n "${ADMIN_TOKEN:-}" ]; then
+                echo "::warning::GITHUB_TOKEN no pudo crear el PR (repo setting); reintentando con ADMIN_PAT"
+                GH_TOKEN="$ADMIN_TOKEN" gh pr create --repo "$REPO" --base main --head develop \
+                  --title "$TITLE" --body "$BODY" 2>&1 || true
+              else
+                echo "::warning::No hay ADMIN_PAT configurado para crear el PR"
+              fi
+            fi
+            NUM=$(list_pr)
           fi
-          [ -z "$NUM" ] && { echo "no se pudo crear/obtener el PR"; exit 0; }
+
+          if [ -z "$NUM" ]; then
+            echo "::warning::No se pudo crear/obtener el PR develop → main (promoción manual requerida)"
+            exit 0
+          fi
+
           echo "Habilitando auto-merge en PR #$NUM"
-          gh pr merge "$NUM" --repo "$REPO" --auto --squash || \
-            gh pr merge "$NUM" --repo "$REPO" --squash || echo "merge no disponible aún"
+          gh pr merge "$NUM" --repo "$REPO" --auto --squash 2>&1 || \
+            gh pr merge "$NUM" --repo "$REPO" --squash 2>&1 || \
+            echo "::warning::merge no disponible aún para el PR #$NUM"
