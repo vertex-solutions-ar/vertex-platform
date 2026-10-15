@@ -92,6 +92,12 @@
   color: var(--platform-status-provisioning-text);
 }
 
+.btn-success {
+  background: var(--platform-status-active-bg);
+  border-color: var(--platform-status-active-border);
+  color: var(--platform-status-active-text);
+}
+
 .btn-icon {
   width: 2.25rem;
   height: 2.25rem;
