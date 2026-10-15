@@ -21,6 +21,12 @@ describe('compareVersions (semver desc)', () => {
     expect(compareVersions('1', '1.0.0')).toBe(0);
   });
 
+  it('listTemplateCommits y resolveTemplateRef están exportadas', async () => {
+    const mod = await import('./versioning');
+    expect(typeof mod.listTemplateCommits).toBe('function');
+    expect(typeof mod.resolveTemplateRef).toBe('function');
+  });
+
   it('permite limpiar la cache de versiones', async () => {
     const { _clearTemplateVersionsCache } = await import('./versioning');
     expect(typeof _clearTemplateVersionsCache).toBe('function');
