@@ -11,7 +11,13 @@ import {
 } from './helpers';
 import { resolvePlatformEnvironment } from './runtime';
 import { verifyGitHubOidcToken } from './github-oidc';
-import { STOREFRONT_REPO } from './deployment-source';
+import {
+  assertDeploySourceAllowed,
+  parseDeploySourceRequest,
+  resolveDeploySource,
+  STOREFRONT_REPO,
+  type DeploySourceStore,
+} from './deployment-source';
 
 interface GitHubRelease {
   tag_name: string;
@@ -62,10 +68,12 @@ function getSchemaVersion(v?: string): number {
 
 let cachedReleasesList: { timestamp: number; versions: TemplateVersion[] } | null = null;
 const CACHE_TTL_MS = 60 * 1000; // 60s TTL
+const COMMIT_SHA_PATTERN = /^[0-9a-fA-F]{7,40}$/;
 
 export function _clearTemplateVersionsCache(): void {
   cachedReleasesList = null;
   cachedRefs = null;
+  cachedCommits.clear();
 }
 
 export const listTemplateVersions = onCall<{ forceRefresh?: boolean }>(
@@ -161,6 +169,156 @@ export interface TemplateRefs {
 }
 
 let cachedRefs: { timestamp: number; refs: TemplateRefs } | null = null;
+
+interface GitHubCommitListItem {
+  sha?: string;
+  commit?: {
+    message?: string;
+    author?: { name?: string; date?: string };
+    committer?: { date?: string };
+  };
+  author?: { login?: string } | null;
+}
+
+/** Commit del repositorio storefront, listo para poblar el selector del panel. */
+export interface TemplateCommit {
+  sha: string;
+  shortSha: string;
+  /** Primera línea del mensaje. */
+  message: string;
+  author: string;
+  date: string;
+}
+
+export interface TemplateCommits {
+  ref: string;
+  commits: TemplateCommit[];
+}
+
+const COMMITS_CACHE_TTL_MS = 60 * 1000;
+const cachedCommits = new Map<string, { timestamp: number; data: TemplateCommits }>();
+
+/** Ref válido para pedirle commits a GitHub (rama, tag `vX.Y.Z` o SHA). */
+function isSafeRef(ref: string): boolean {
+  return /^[A-Za-z0-9._/-]{1,120}$/.test(ref) || COMMIT_SHA_PATTERN.test(ref);
+}
+
+/**
+ * Lista los commits recientes de una rama (o tag/SHA).
+ *
+ * Sin esto el modo "Commit" era un input de texto libre: el usuario tenía que ir a GitHub,
+ * copiar un SHA y pegarlo. Ahora elige de una lista con mensaje, autor y fecha.
+ */
+export const listTemplateCommits = onCall<{
+  ref?: string;
+  limit?: number;
+  forceRefresh?: boolean;
+}>({ cors: ALLOWED_ORIGINS, invoker: 'public' }, async (request) => {
+  if (!request.auth?.token['platformAdmin']) {
+    throw new HttpsError('permission-denied', 'Only platform admins can list template commits.');
+  }
+
+  const ref = (request.data?.ref || 'develop').trim();
+  if (!isSafeRef(ref)) {
+    throw new HttpsError('invalid-argument', `Ref inválido: "${ref}".`);
+  }
+
+  const limit = Math.min(Math.max(Number(request.data?.limit) || 20, 1), 50);
+  const forceRefresh = Boolean(request.data?.forceRefresh);
+  const cacheKey = `${ref}:${limit}`;
+  const now = Date.now();
+  const cached = cachedCommits.get(cacheKey);
+  if (!forceRefresh && cached && now - cached.timestamp < COMMITS_CACHE_TTL_MS) {
+    return cached.data;
+  }
+
+  const pat = await getGitHubPat();
+  let res: Response;
+  try {
+    res = await fetch(
+      `https://api.github.com/repos/${STOREFRONT_REPO}/commits?sha=${encodeURIComponent(ref)}&per_page=${limit}`,
+      {
+        headers: {
+          Authorization: `Bearer ${pat}`,
+          Accept: 'application/vnd.github+json',
+          'X-GitHub-Api-Version': '2022-11-28',
+        },
+        signal: AbortSignal.timeout(15000),
+      },
+    );
+  } catch (err) {
+    console.warn('[listTemplateCommits] fetch failed:', err);
+    throw new HttpsError('unavailable', 'No se pudo consultar los commits en GitHub.');
+  }
+
+  if (res.status === 404) {
+    throw new HttpsError('not-found', `La rama "${ref}" no existe en el repositorio.`);
+  }
+  if (!res.ok) {
+    console.warn('[listTemplateCommits] GitHub error:', res.status);
+    throw new HttpsError('unavailable', `GitHub respondió ${res.status} al listar commits.`);
+  }
+
+  const raw = (await res.json()) as GitHubCommitListItem[];
+  const commits: TemplateCommit[] = (Array.isArray(raw) ? raw : [])
+    .filter((c) => c?.sha)
+    .map((c) => ({
+      sha: c.sha!,
+      shortSha: c.sha!.substring(0, 7),
+      message: (c.commit?.message || '').split('\n')[0].slice(0, 140),
+      author: c.author?.login || c.commit?.author?.name || 'desconocido',
+      date: c.commit?.committer?.date || c.commit?.author?.date || '',
+    }));
+
+  const data: TemplateCommits = { ref, commits };
+  cachedCommits.set(cacheKey, { timestamp: now, data });
+  return data;
+});
+
+/**
+ * Resuelve y valida una fuente **sin desplegar**, para poder mostrar en el panel exactamente
+ * qué se va a compilar (commit, mensaje y fecha) antes de confirmar.
+ *
+ * Reusa el mismo resolutor que el deploy real, así que lo que se previsualiza es lo que se
+ * compila: si el ref no existe, falla acá y no después de encolar el workflow.
+ */
+export const resolveTemplateRef = onCall<{
+  storeId: string;
+  kind: 'release' | 'branch' | 'commit';
+  value: string;
+}>({ cors: ALLOWED_ORIGINS, invoker: 'public' }, async (request) => {
+  if (!request.auth?.token['platformAdmin']) {
+    throw new HttpsError('permission-denied', 'Only platform admins can resolve template refs.');
+  }
+
+  const { storeId, kind, value } = request.data || ({} as Record<string, string>);
+  if (!storeId) {
+    throw new HttpsError('invalid-argument', 'storeId is required.');
+  }
+
+  const db = getFirestore();
+  const storeSnap = await db.collection('stores').doc(storeId).get();
+  if (!storeSnap.exists) {
+    throw new HttpsError('not-found', 'Store not found.');
+  }
+  const store = storeSnap.data() as unknown as DeploySourceStore;
+
+  const parsed = parseDeploySourceRequest({ kind, value });
+  if (!parsed) {
+    throw new HttpsError('invalid-argument', 'Fuente de despliegue vacía.');
+  }
+  assertDeploySourceAllowed(store, parsed, resolvePlatformEnvironment(PLATFORM_PROJECT));
+
+  const resolved = await resolveDeploySource(parsed);
+  return {
+    kind: resolved.kind,
+    ref: resolved.ref,
+    gitRef: resolved.gitRef,
+    commitSha: resolved.commitSha,
+    commitMessage: resolved.commitMessage,
+    commitDate: resolved.commitDate,
+  };
+});
 
 /**
  * Lista las ramas y releases disponibles del repositorio storefront.

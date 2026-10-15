@@ -23,6 +23,8 @@ describe('StoreDetailDeployService', () => {
     listTemplateRefs: ReturnType<typeof vi.fn>;
     redeployStore: ReturnType<typeof vi.fn>;
     updateStoreVersion: ReturnType<typeof vi.fn>;
+    listTemplateCommits: ReturnType<typeof vi.fn>;
+    resolveTemplateRef: ReturnType<typeof vi.fn>;
     updateStore: ReturnType<typeof vi.fn>;
     resetStoreDeployStatus: ReturnType<typeof vi.fn>;
   };
@@ -44,6 +46,33 @@ describe('StoreDetailDeployService', () => {
       }),
       redeployStore: vi.fn().mockResolvedValue(undefined),
       updateStoreVersion: vi.fn().mockResolvedValue(undefined),
+      listTemplateCommits: vi.fn().mockResolvedValue({
+        ref: 'develop',
+        commits: [
+          {
+            sha: 'a'.repeat(40),
+            shortSha: 'aaaaaaa',
+            message: 'feat: último',
+            author: 'dev',
+            date: '2026-10-15T00:00:00Z',
+          },
+          {
+            sha: 'b'.repeat(40),
+            shortSha: 'bbbbbbb',
+            message: 'fix: anterior',
+            author: 'dev',
+            date: '2026-10-14T00:00:00Z',
+          },
+        ],
+      }),
+      resolveTemplateRef: vi.fn().mockResolvedValue({
+        kind: 'branch',
+        ref: 'develop',
+        gitRef: 'develop',
+        commitSha: 'a'.repeat(40),
+        commitMessage: 'feat: último',
+        commitDate: '2026-10-15T00:00:00Z',
+      }),
       updateStore: vi.fn().mockResolvedValue(undefined),
       resetStoreDeployStatus: vi.fn().mockResolvedValue(undefined),
     };
@@ -274,6 +303,82 @@ describe('StoreDetailDeployService', () => {
       expect(orchestration.hasUserInitiated('store-A')).toBe(true);
       expect(orchestration.isStoreDeploying('store-A')).toBe(false);
       expect(orchestration.isStoreUpdating('store-A')).toBe(false);
+    });
+  });
+
+  describe('modo Commit: lista de commits y preview', () => {
+    it('al entrar al modo Commit lista los commits y preselecciona el más reciente', async () => {
+      await sync(buildStore({ shardId: 'shard-development-abc' }));
+      service.setKind('commit');
+      await vi.waitFor(() => expect(service.commits().length).toBe(2));
+
+      expect(storesServiceMock.listTemplateCommits).toHaveBeenCalledWith('develop', 20, false);
+      expect(service.value()).toBe('a'.repeat(40));
+      expect(service.isLoadingCommits()).toBe(false);
+    });
+
+    it('cambiar la rama origen recarga los commits y limpia la selección', async () => {
+      await sync(buildStore({ shardId: 'shard-development-abc' }));
+      service.setKind('commit');
+      await vi.waitFor(() => expect(service.commits().length).toBe(2));
+
+      service.setCommitsRef('main');
+      expect(service.commitsRef()).toBe('main');
+      await vi.waitFor(() =>
+        expect(storesServiceMock.listTemplateCommits).toHaveBeenCalledWith('main', 20, false),
+      );
+    });
+
+    it('expone un error legible si GitHub falla al listar commits', async () => {
+      storesServiceMock.listTemplateCommits.mockRejectedValueOnce(new Error('GitHub 500'));
+      await sync(buildStore({ shardId: 'shard-development-abc' }));
+      service.setKind('commit');
+      await vi.waitFor(() => expect(service.commitsError()).toContain('GitHub 500'));
+      expect(service.commits()).toEqual([]);
+      expect(service.isLoadingCommits()).toBe(false);
+    });
+
+    it('el modo manual permite pegar un SHA', async () => {
+      await sync(buildStore({ shardId: 'shard-development-abc' }));
+      service.setKind('commit');
+      await vi.waitFor(() => expect(service.commits().length).toBe(2));
+
+      service.toggleManualCommitMode(true);
+      expect(service.manualCommitMode()).toBe(true);
+      expect(service.value()).toBe('');
+      service.setValue('c'.repeat(40));
+      expect(service.value()).toBe('c'.repeat(40));
+    });
+
+    it('resuelve la fuente para previsualizar qué se compila', async () => {
+      await sync(buildStore({ shardId: 'shard-development-abc' }));
+      service.setKind('branch');
+      service.setValue('develop');
+      await vi.waitFor(() => expect(service.preview()).not.toBeNull());
+
+      expect(storesServiceMock.resolveTemplateRef).toHaveBeenCalledWith(
+        'store-A',
+        'branch',
+        'develop',
+      );
+      expect(service.preview()?.commitSha).toBe('a'.repeat(40));
+      expect(service.preview()?.commitMessage).toBe('feat: último');
+    });
+
+    it('no resuelve releases (no hace falta) ni valores vacíos', async () => {
+      await sync(buildStore());
+      await service.refreshPreview();
+      expect(storesServiceMock.resolveTemplateRef).not.toHaveBeenCalled();
+    });
+
+    it('un error al resolver se muestra sin romper el formulario', async () => {
+      storesServiceMock.resolveTemplateRef.mockRejectedValueOnce(new Error('El ref no existe'));
+      await sync(buildStore({ shardId: 'shard-development-abc' }));
+      service.setKind('branch');
+      service.setValue('no-existe');
+      await vi.waitFor(() => expect(service.resolveError()).toContain('no existe'));
+      expect(service.preview()).toBeNull();
+      expect(service.isResolving()).toBe(false);
     });
   });
 

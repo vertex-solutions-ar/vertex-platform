@@ -586,7 +586,7 @@
                             }
                           </select>
                         }
-                      } @else {
+                      } @else if (manualCommitMode()) {
                         <input
                           type="text"
                           class="deploy-field"
@@ -597,6 +597,49 @@
                           autocomplete="off"
                           aria-label="SHA del commit"
                         />
+                      } @else {
+                        <div class="deploy-form__stack">
+                          <select
+                            class="deploy-field deploy-field--select"
+                            [value]="commitsRef()"
+                            (change)="onCommitsRefChange($event)"
+                            [disabled]="isDeployBlocked()"
+                            aria-label="Rama de la que se listan los commits"
+                          >
+                            @for (b of branches(); track b.name) {
+                              <option [value]="b.name">{{ b.name }}</option>
+                            }
+                          </select>
+
+                          @if (isLoadingCommits()) {
+                            <div class="skeleton skeleton--h-50"></div>
+                          } @else if (commitsError()) {
+                            <p class="deploy-notice deploy-notice--error">
+                              <i class="bi bi-x-circle-fill" aria-hidden="true"></i>
+                              <span>{{ commitsError() }}</span>
+                            </p>
+                          } @else if (commits().length === 0) {
+                            <p class="deploy-notice">
+                              <i class="bi bi-info-circle" aria-hidden="true"></i>
+                              <span>No hay commits en esta rama.</span>
+                            </p>
+                          } @else {
+                            <select
+                              class="deploy-field deploy-field--select"
+                              [value]="deploySourceValue()"
+                              (change)="onCommitChange($event)"
+                              [disabled]="isDeployBlocked()"
+                              aria-label="Commit a desplegar"
+                            >
+                              @for (c of commits(); track c.sha) {
+                                <option [value]="c.sha">
+                                  {{ c.shortSha }} · {{ c.message }} · {{ c.author }} ·
+                                  {{ c.date | date: 'dd/MM' }}
+                                </option>
+                              }
+                            </select>
+                          }
+                        </div>
                       }
                     </div>
 
@@ -616,6 +659,33 @@
                       }
                     </button>
                   </div>
+
+                  @if (isResolving() || resolveError() || preview()) {
+                    <div
+                      class="deploy-preview"
+                      [class.deploy-preview--error]="!!resolveError()"
+                      aria-live="polite"
+                    >
+                      @if (isResolving()) {
+                        <app-spinner size="sm" />
+                        <span>Verificando en GitHub…</span>
+                      } @else if (resolveError()) {
+                        <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+                        <span>{{ resolveError() }}</span>
+                      } @else if (preview(); as resolved) {
+                        <i class="bi bi-check-circle-fill" aria-hidden="true"></i>
+                        <span
+                          >Se compilará <code>{{ resolved.commitSha.substring(0, 7) }}</code></span
+                        >
+                        <span class="deploy-preview__msg">{{ resolved.commitMessage }}</span>
+                        @if (resolved.commitDate) {
+                          <span class="deploy-preview__date">{{
+                            resolved.commitDate | date: 'dd/MM/yy HH:mm'
+                          }}</span>
+                        }
+                      }
+                    </div>
+                  }
 
                   @if (deploySourceKind() === 'branch' && branchesError()) {
                     <p class="deploy-notice deploy-notice--error">
@@ -640,6 +710,16 @@
                           (change)="toggleCustomBranchMode($any($event.target).checked)"
                         />
                         <span>Escribir otra rama</span>
+                      </label>
+                    }
+                    @if (deploySourceKind() === 'commit') {
+                      <label class="deploy-switch">
+                        <input
+                          type="checkbox"
+                          [checked]="manualCommitMode()"
+                          (change)="toggleManualCommitMode($any($event.target).checked)"
+                        />
+                        <span>Escribir un SHA</span>
                       </label>
                     }
                     @if (deploySourceKind() !== 'commit') {
