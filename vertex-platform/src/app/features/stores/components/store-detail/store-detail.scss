@@ -5008,6 +5008,56 @@ html[data-theme='light'] {
   color: var(--platform-status-active-text);
 }
 
+/* ── Modo Commit: rama origen + lista de commits ───────────────────────── */
+.deploy-form__stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+/* ── Preview de lo que se va a compilar ────────────────────────────────── */
+.deploy-preview {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+  margin-top: 0.6rem;
+  padding: 0.5rem 0.7rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--platform-status-active-border);
+  background: var(--platform-status-active-bg);
+  color: var(--platform-status-active-text);
+  font-size: 0.78rem;
+
+  code {
+    font-size: 0.76rem;
+  }
+
+  i {
+    flex-shrink: 0;
+  }
+}
+
+.deploy-preview--error {
+  border-color: var(--platform-status-error-border);
+  background: var(--platform-status-error-bg);
+  color: var(--platform-status-error-text);
+}
+
+.deploy-preview__msg {
+  color: var(--platform-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 42ch;
+}
+
+.deploy-preview__date {
+  margin-left: auto;
+  color: var(--platform-text-muted);
+  white-space: nowrap;
+}
+
 /* ── Progreso: reusa `.action-progress` (ver arriba) ────────────────────── */
 .deploy-icon--ok {
   color: var(--platform-success);
