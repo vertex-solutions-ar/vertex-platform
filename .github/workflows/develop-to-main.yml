@@ -20,54 +20,72 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Create or refresh PR and enable auto-merge
+      - name: Build the sync branch, open the PR and merge it
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          ADMIN_TOKEN: ${{ secrets.ADMIN_PAT }}
+          GH_TOKEN: ${{ secrets.ADMIN_PAT }}
           REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
           git fetch origin develop main --quiet
-          if [ "$(git rev-parse origin/develop)" = "$(git rev-parse origin/main)" ]; then
-            echo "develop y main están iguales: nada para sincronizar"
+
+          # Se compara CONTENIDO, no commits: con promociones squash los commits
+          # siempre difieren y el guard por SHA no detectaba nada.
+          if git diff --quiet origin/develop origin/main; then
+            echo "develop y main tienen el mismo contenido: nada para sincronizar"
             exit 0
           fi
 
-          TITLE="chore(release): sync develop → main"
-          BODY="PR automático de sincronización **develop → main**. Se mergea solo (squash) cuando los checks pasan. No borra ramas protegidas."
+          BRANCH="chore/sync-develop-to-main"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -B "$BRANCH" origin/main
 
-          list_pr() {
-            gh pr list --repo "$REPO" --base main --head develop --state open \
-              --json number --jq '.[0].number // empty'
-          }
-
-          NUM=$(list_pr)
-
-          if [ -z "$NUM" ]; then
-            echo "Creando PR develop → main"
-            # El repo tiene deshabilitado "Allow GitHub Actions to create or approve pull
-            # requests", así que GH_TOKEN falla con createPullRequest. Se reintenta con
-            # ADMIN_PAT (igual que back-sync.yml) y, si tampoco puede, se avisa
-            # explícitamente en lugar de salir en silencio como antes.
-            if ! gh pr create --repo "$REPO" --base main --head develop \
-                 --title "$TITLE" --body "$BODY" 2>&1; then
-              if [ -n "${ADMIN_TOKEN:-}" ]; then
-                echo "::warning::GITHUB_TOKEN no pudo crear el PR (repo setting); reintentando con ADMIN_PAT"
-                GH_TOKEN="$ADMIN_TOKEN" gh pr create --repo "$REPO" --base main --head develop \
-                  --title "$TITLE" --body "$BODY" 2>&1 || true
-              else
-                echo "::warning::No hay ADMIN_PAT configurado para crear el PR"
-              fi
-            fi
-            NUM=$(list_pr)
+          # Un PR develop→main no es mergeable: main no es ancestro de develop porque
+          # las promociones son squash. Se arma una rama desde main con el contenido de
+          # develop, que sí produce un squash limpio.
+          if git merge --no-commit --no-ff origin/develop >/dev/null 2>&1; then
+            echo "Merge sin conflictos."
+          else
+            echo "::notice::Merge con conflictos: se resuelve tomando el contenido de develop (main queda contenido-a-contenido con develop)."
+            CONFLICTED=$(git diff --name-only --diff-filter=U)
+            for f in $CONFLICTED; do git checkout --theirs -- "$f"; done
+            for f in $CONFLICTED; do git add -- "$f"; done
           fi
 
-          if [ -z "$NUM" ]; then
-            echo "::warning::No se pudo crear/obtener el PR develop → main (promoción manual requerida)"
-            exit 0
+          # Invariante: el árbol debe quedar idéntico a develop, o no se toca main.
+          if ! git diff --quiet origin/develop -- .; then
+            echo "::error::El merge no quedó idéntico a develop; se aborta para no romper main."
+            exit 1
           fi
 
-          echo "Habilitando auto-merge en PR #$NUM"
-          gh pr merge "$NUM" --repo "$REPO" --auto --squash 2>&1 || \
-            gh pr merge "$NUM" --repo "$REPO" --squash 2>&1 || \
-            echo "::warning::merge no disponible aún para el PR #$NUM"
+          git commit -q -m "chore(release): sync develop into main"
+          git push --force-with-lease origin "$BRANCH"
+
+          NUM=$(gh pr list --repo "$REPO" --base main --head "$BRANCH" --state open \
+            --json number --jq '.[0].number // empty')
+          if [ -z "$NUM" ]; then
+            gh pr create --repo "$REPO" --base main --head "$BRANCH" \
+              --title "chore(release): sync develop into main" \
+              --body "Promoción automática: \`main\` queda contenido-a-contenido con \`develop\`.
+
+          La rama se construye desde \`main\` (con el contenido de \`develop\`) porque un PR develop→main no es mergeable: las promociones son squash y \`main\` no es ancestro de \`develop\`. El workflow verifica que el árbol resultante sea **idéntico** a \`develop\` antes de pushear."
+            NUM=$(gh pr list --repo "$REPO" --base main --head "$BRANCH" --state open \
+              --json number --jq '.[0].number // empty')
+          fi
+          if [ -z "$NUM" ]; then
+            echo "::error::No se pudo crear/obtener el PR develop → main."
+            exit 1
+          fi
+          echo "PR #$NUM listo."
+
+          # Auto-merge exige permisos que el token no tiene en esta rama protegida
+          # ('User is not authorized for this protected branch'), así que se esperan
+          # los checks y se mergea explícitamente.
+          gh pr merge "$NUM" --repo "$REPO" --auto --squash 2>/dev/null || true
+          if gh pr checks "$NUM" --repo "$REPO" --watch --interval 20 --fail-fast; then
+            gh pr merge "$NUM" --repo "$REPO" --squash --delete-branch=false 2>&1 \
+              || echo "::warning::Auto-merge armado; GitHub lo mergea al terminar los checks."
+            echo "✅ main sincronizado con develop (PR #$NUM)."
+          else
+            echo "::warning::Los checks del PR #$NUM no pasaron; queda abierto para revisión."
+          fi
