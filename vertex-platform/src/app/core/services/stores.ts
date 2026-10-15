@@ -23,7 +23,10 @@ import type {
   PendingInvitation,
   TemplateVersion,
   TemplateRefs,
+  TemplateCommits,
+  ResolvedTemplateRef,
   DeploySourceRequest,
+  DeploySourceKind,
   PricingOverride,
 } from '../models/store';
 import type {
@@ -229,6 +232,40 @@ export class StoresService {
       'listTemplateRefs',
     );
     const result = await fn({ forceRefresh });
+    return result.data;
+  }
+
+  /**
+   * Commits recientes de una rama. Sin esto el modo Commit era un input de texto: el
+   * usuario tenía que ir a GitHub, copiar un SHA y pegarlo a mano.
+   */
+  async listTemplateCommits(
+    ref = 'develop',
+    limit = 20,
+    forceRefresh = false,
+  ): Promise<TemplateCommits> {
+    const fn = httpsCallable<
+      { ref: string; limit: number; forceRefresh: boolean },
+      TemplateCommits
+    >(this.fns, 'listTemplateCommits');
+    const result = await fn({ ref, limit, forceRefresh });
+    return result.data;
+  }
+
+  /**
+   * Resuelve la fuente contra GitHub **sin desplegar**, para previsualizar en el panel
+   * exactamente qué se va a compilar (commit, mensaje y fecha).
+   */
+  async resolveTemplateRef(
+    storeId: string,
+    kind: DeploySourceKind,
+    value: string,
+  ): Promise<ResolvedTemplateRef> {
+    const fn = httpsCallable<
+      { storeId: string; kind: DeploySourceKind; value: string },
+      ResolvedTemplateRef
+    >(this.fns, 'resolveTemplateRef');
+    const result = await fn({ storeId, kind, value });
     return result.data;
   }
 

@@ -2,8 +2,10 @@ import { Injectable, computed, inject, signal } from '@angular/core';
 import type {
   DeploySourceKind,
   DeploySourceRequest,
+  ResolvedTemplateRef,
   Store,
   StoreDeploySource,
+  TemplateCommit,
 } from '@core/models/store';
 import { StoresService } from '@core/services/stores';
 import { errorMessage } from '@core/utils/error.util';
@@ -47,6 +49,20 @@ export class StoreDetailDeployService {
 
   /** Tienda en foco (la empuja el componente). */
   private readonly store = signal<Store | null>(null);
+
+  // ── Modo Commit: rama origen + lista de commits ──────────────────────────
+  /** Rama de la que se listan los commits del modo Commit. */
+  readonly commitsRef = signal<string>('develop');
+  readonly commits = signal<TemplateCommit[]>([]);
+  readonly isLoadingCommits = signal(false);
+  readonly commitsError = signal('');
+  /** Escape hatch: pegar un SHA que no está en la lista. */
+  readonly manualCommitMode = signal(false);
+
+  // ── Preview de la fuente (qué se va a compilar) ──────────────────────────
+  readonly preview = signal<ResolvedTemplateRef | null>(null);
+  readonly isResolving = signal(false);
+  readonly resolveError = signal('');
 
   readonly isUpdatingAllowTest = signal(false);
   /** Confirmación pendiente antes de pisar el sitio con código de prueba. */
@@ -176,6 +192,91 @@ export class StoreDetailDeployService {
       return;
     }
     this.orchestration.setDeploySourceDraft(store.id, { kind });
+    if (kind === 'commit') {
+      // Al entrar al modo Commit se listan los commits: el usuario sólo elige.
+      void this.loadCommits(this.commitsRef());
+    }
+  }
+
+  /** Cambia la rama de la que se listan commits (y limpia el commit elegido). */
+  setCommitsRef(ref: string): void {
+    this.commitsRef.set(ref);
+    this.manualCommitMode.set(false);
+    this.setValue('');
+    void this.loadCommits(ref);
+  }
+
+  onCommitsRefChange(event: Event): void {
+    this.setCommitsRef((event.target as HTMLSelectElement).value);
+  }
+
+  toggleManualCommitMode(enabled: boolean): void {
+    this.manualCommitMode.set(enabled);
+    if (enabled) {
+      this.setValue('');
+    } else {
+      const first = this.commits()[0];
+      this.setValue(first ? first.sha : '');
+    }
+  }
+
+  /** Lista los commits de una rama (cache 60 s del lado de la Cloud Function). */
+  async loadCommits(ref: string, force = false): Promise<void> {
+    this.isLoadingCommits.set(true);
+    this.commitsError.set('');
+    try {
+      const data = await this.storesService.listTemplateCommits(ref, 20, force);
+      this.commits.set(data?.commits ?? []);
+      // Preselecciona el más reciente para que el flujo sea elegir y desplegar.
+      if (!this.value() && data?.commits?.length) {
+        this.setValue(data.commits[0].sha);
+      }
+    } catch (err) {
+      this.commits.set([]);
+      this.commitsError.set(
+        errorMessage(err, 'No se pudieron listar los commits del repositorio.'),
+      );
+    } finally {
+      this.isLoadingCommits.set(false);
+    }
+  }
+
+  /** Commit seleccionado en el modo Commit (para el preview y la etiqueta). */
+  readonly selectedCommit = computed<TemplateCommit | null>(() => {
+    const value = this.value();
+    if (!value) {
+      return null;
+    }
+    return this.commits().find((c) => c.sha === value || c.shortSha === value) ?? null;
+  });
+
+  /**
+   * Resuelve la fuente contra GitHub sin desplegar. Lo que se previsualiza es exactamente
+   * lo que se compila: mismo resolutor que usa el deploy real.
+   */
+  async refreshPreview(): Promise<void> {
+    const store = this.store();
+    const value = this.value().trim();
+    const kind = this.kind();
+    this.preview.set(null);
+    this.resolveError.set('');
+    if (!store || !value || kind === 'release') {
+      return;
+    }
+    this.isResolving.set(true);
+    try {
+      const resolved = await this.storesService.resolveTemplateRef(store.id, kind, value);
+      // Descarta respuestas viejas si el usuario ya cambió la selección.
+      if (this.value().trim() === value && this.kind() === kind) {
+        this.preview.set(resolved);
+      }
+    } catch (err) {
+      if (this.value().trim() === value && this.kind() === kind) {
+        this.resolveError.set(errorMessage(err, 'No se pudo verificar la fuente en GitHub.'));
+      }
+    } finally {
+      this.isResolving.set(false);
+    }
   }
 
   setValue(value: string): void {
@@ -188,6 +289,7 @@ export class StoreDetailDeployService {
       branch?: string;
       commit?: string;
     });
+    void this.refreshPreview();
   }
 
   onReleaseChange(event: Event): void {
@@ -195,6 +297,10 @@ export class StoreDetailDeployService {
   }
 
   onBranchChange(event: Event): void {
+    this.setValue((event.target as HTMLSelectElement).value);
+  }
+
+  onCommitChange(event: Event): void {
     this.setValue((event.target as HTMLSelectElement).value);
   }
 

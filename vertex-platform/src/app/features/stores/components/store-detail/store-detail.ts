@@ -205,6 +205,16 @@ export class StoreDetail implements OnInit {
   readonly deploySourceHint = this.deploy.hint;
   readonly sourceKinds = this.deploy.sourceKinds;
   // Helpers puros (no dependen de `this`) reexportados directo para el template.
+  // Modo Commit + preview de la fuente
+  readonly commitsRef = this.deploy.commitsRef;
+  readonly commits = this.deploy.commits;
+  readonly isLoadingCommits = this.deploy.isLoadingCommits;
+  readonly commitsError = this.deploy.commitsError;
+  readonly manualCommitMode = this.deploy.manualCommitMode;
+  readonly preview = this.deploy.preview;
+  readonly isResolving = this.deploy.isResolving;
+  readonly resolveError = this.deploy.resolveError;
+
   readonly sourceLabel = this.deploy.sourceLabel;
   readonly sourceCommitSuffix = this.deploy.sourceCommitSuffix;
   readonly sourceUrl = this.deploy.sourceUrl;
@@ -345,6 +355,18 @@ export class StoreDetail implements OnInit {
 
   toggleCustomBranchMode(enabled: boolean): void {
     this.deploy.toggleCustomBranchMode(enabled);
+  }
+
+  onCommitsRefChange(event: Event): void {
+    this.deploy.onCommitsRefChange(event);
+  }
+
+  onCommitChange(event: Event): void {
+    this.deploy.onCommitChange(event);
+  }
+
+  toggleManualCommitMode(enabled: boolean): void {
+    this.deploy.toggleManualCommitMode(enabled);
   }
 
   toggleAllowTestDeployments(event: Event): void {

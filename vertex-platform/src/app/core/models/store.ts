@@ -54,6 +54,30 @@ export interface TemplateRefs {
   releases: TemplateVersion[];
 }
 
+/** Commit del repositorio storefront, para el selector de modo Commit. */
+export interface TemplateCommit {
+  sha: string;
+  shortSha: string;
+  message: string;
+  author: string;
+  date: string;
+}
+
+export interface TemplateCommits {
+  ref: string;
+  commits: TemplateCommit[];
+}
+
+/** Fuente resuelta y validada contra GitHub, sin desplegar (preview del panel). */
+export interface ResolvedTemplateRef {
+  kind: DeploySourceKind;
+  ref: string;
+  gitRef: string;
+  commitSha: string;
+  commitMessage: string;
+  commitDate: string;
+}
+
 export interface ProvisioningStep {
   status: StepStatus;
   label: string;
