@@ -23,6 +23,7 @@ import { AuthService } from '@core/services/auth';
 import { StoreDetailStaffService } from './services/store-detail-staff.service';
 import { StoreDetailDomainsService } from './services/store-detail-domains.service';
 import { StoreDetailOrchestrationService } from './services/store-detail-orchestration.service';
+import { formatVersionTagOr } from '@core/utils/deploy-source.util';
 import type { DeploySourceKind, PendingInvitation, Store } from '@core/models/store';
 import {
   formatDateUtil,
@@ -214,10 +215,13 @@ export class StoreDetail implements OnInit {
   readonly preview = this.deploy.preview;
   readonly isResolving = this.deploy.isResolving;
   readonly resolveError = this.deploy.resolveError;
+  readonly copiedValue = this.deploy.copiedValue;
 
   readonly sourceLabel = this.deploy.sourceLabel;
   readonly sourceCommitSuffix = this.deploy.sourceCommitSuffix;
   readonly sourceUrl = this.deploy.sourceUrl;
+  /** Tag de versión normalizado (evita el clásico `vv0.9.5`). */
+  readonly versionTag = formatVersionTagOr;
 
   /** Indica si hay una versión más reciente de la plantilla disponible para esta tienda. */
   readonly isUpdateAvailable = computed<boolean>(() => {
@@ -369,6 +373,16 @@ export class StoreDetail implements OnInit {
     this.deploy.toggleManualCommitMode(enabled);
   }
 
+  copySourceValue(value: string): void {
+    void this.deploy.copy(value);
+  }
+
+  /** Texto plano de la fuente activa (lo que se copia al portapapeles). */
+  sourceShortRefText(): string {
+    const source = this.activeDeploySource();
+    return `${this.sourceLabel(source, this.store()?.templateVersion)}${this.sourceCommitSuffix(source)}`;
+  }
+
   toggleAllowTestDeployments(event: Event): void {
     void this.deploy.toggleAllowTestDeployments((event.target as HTMLInputElement).checked);
   }
@@ -507,10 +521,7 @@ export class StoreDetail implements OnInit {
   }
 
   formatVersion(v?: string): string {
-    if (!v) {
-      return 'v0.5.0';
-    }
-    return v.startsWith('v') ? v : `v${v}`;
+    return formatVersionTagOr(v, 'v0.9.5');
   }
 
   copyToClipboard(text: string): Promise<void> {
