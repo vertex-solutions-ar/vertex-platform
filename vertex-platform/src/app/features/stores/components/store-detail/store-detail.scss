@@ -122,12 +122,6 @@
   }
 }
 
-.action-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
 .badge {
   font-size: 0.7rem;
   font-weight: 600;
@@ -335,9 +329,6 @@
   }
 }
 
-.capitalize {
-  text-transform: capitalize;
-}
 .loading {
   text-align: center;
   padding: 4rem;
@@ -508,57 +499,6 @@
 }
 
 // ── Domain form ────────────────────────────────────────────────────────────
-.domain-form {
-  display: flex;
-  gap: 0.5rem;
-  margin-top: 0.5rem;
-
-  .form-control {
-    flex: 1;
-    padding: 0.5rem 0.75rem;
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid var(--platform-card-border);
-    border-radius: 8px;
-    color: var(--platform-text-primary);
-    font-size: 0.875rem;
-    outline: none;
-
-    &::placeholder {
-      color: var(--platform-text-muted);
-    }
-    &:focus {
-      border-color: var(--platform-accent-purple);
-      box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
-    }
-  }
-}
-
-.dns-card {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid var(--platform-card-border);
-  border-radius: 8px;
-  padding: 0.875rem 1rem;
-
-  &__title {
-    font-size: 0.8rem;
-    font-weight: 600;
-    color: var(--platform-text-secondary);
-    margin: 0 0 0.5rem;
-  }
-}
-
-.dns-record {
-  display: block;
-  font-size: 0.75rem;
-  color: #a5f3fc;
-  margin-bottom: 0.25rem;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 4px;
-  padding: 0.2rem 0.5rem;
-  font-family: 'JetBrains Mono', 'Fira Code', monospace;
-}
-
 .action-error {
   font-size: 0.825rem;
   color: #fca5a5;
@@ -566,58 +506,6 @@
 }
 
 .provisioning-actions,
-.error-actions {
-  margin-top: 1.25rem;
-  padding-top: 1.25rem;
-  border-top: 1px solid var(--platform-card-border);
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  align-items: flex-start;
-
-  &__buttons {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.75rem;
-    align-items: center;
-  }
-
-  &__hint {
-    margin: 0;
-    font-size: 0.82rem;
-    color: var(--platform-text-muted);
-    display: flex;
-    align-items: center;
-    gap: 0.35rem;
-    line-height: 1.4;
-
-    i {
-      color: var(--platform-status-provisioning-text, #eab308);
-      font-size: 0.95rem;
-    }
-  }
-}
-
-.firebase-console-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.3rem;
-  font-size: 0.78rem;
-  color: var(--platform-text-muted);
-  text-decoration: none;
-  border: 1px solid var(--platform-card-border);
-  border-radius: 6px;
-  padding: 0.2rem 0.5rem;
-  transition:
-    color 0.15s,
-    border-color 0.15s;
-
-  &:hover {
-    color: #fb923c;
-    border-color: rgba(251, 146, 60, 0.4);
-  }
-}
-
 .btn-warning {
   background: rgba(234, 179, 8, 0.12);
   color: #fde047;
@@ -687,43 +575,6 @@
   }
 }
 
-.btn-refresh {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid var(--platform-card-border);
-  border-radius: 6px;
-  color: var(--platform-text-secondary);
-  font-size: 0.8rem;
-  font-weight: 500;
-  padding: 0.35rem 0.75rem;
-  cursor: pointer;
-  transition: all 0.2s ease;
-
-  &:hover {
-    background: rgba(255, 255, 255, 0.08);
-    color: var(--platform-text-primary);
-    border-color: rgba(255, 255, 255, 0.2);
-    box-shadow: 0 0 10px rgba(255, 255, 255, 0.03);
-  }
-}
-
-.deployment-list {
-  margin-top: 0.5rem;
-}
-
-.deployment-loading {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 3rem 1rem;
-  gap: 1rem;
-  color: var(--platform-text-muted);
-  font-size: 0.9rem;
-}
-
 .deployment-empty {
   display: flex;
   flex-direction: column;
@@ -779,12 +630,6 @@
   }
 }
 
-.deployment-number {
-  font-family: 'JetBrains Mono', 'Fira Code', monospace;
-  font-weight: 600;
-  color: var(--platform-text-secondary);
-}
-
 .deployment-title {
   max-width: 250px;
   white-space: nowrap;
@@ -796,22 +641,6 @@
 .deployment-date {
   color: var(--platform-text-muted);
   font-size: 0.8rem;
-}
-
-.logs-link {
-  color: #60a5fa;
-  text-decoration: none;
-  font-weight: 500;
-  font-size: 0.8rem;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-  transition: color 0.15s ease;
-
-  &:hover {
-    color: #93c5fd;
-    text-decoration: underline;
-  }
 }
 
 // Neon badges for deployment statuses
@@ -1543,61 +1372,6 @@
   word-break: break-all;
 }
 
-.dns-record-block {
-  display: flex;
-  background: rgba(0, 0, 0, 0.2);
-  border: 1px solid var(--platform-card-border);
-  border-radius: 8px;
-  overflow: hidden;
-
-  &__type {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0 1rem;
-    background: rgba(255, 255, 255, 0.02);
-    border-right: 1px solid var(--platform-card-border);
-
-    .badge-role {
-      font-size: 0.75rem;
-      letter-spacing: 0.05em;
-    }
-  }
-
-  &__data {
-    flex: 1;
-    padding: 0.75rem 1rem;
-    display: flex;
-    flex-direction: column;
-
-    .dns-record-label {
-      font-size: 0.65rem;
-      color: var(--platform-text-muted);
-      text-transform: uppercase;
-      font-weight: 600;
-      letter-spacing: 0.05em;
-    }
-
-    code {
-      font-family: 'JetBrains Mono', 'Fira Code', monospace;
-      font-size: 0.825rem;
-      color: #a5f3fc;
-      margin-top: 0.15rem;
-    }
-
-    .dns-value-copy {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-top: 0.15rem;
-
-      code {
-        color: #86efac;
-      }
-    }
-  }
-}
-
 .alert {
   padding: 0.75rem 1rem;
   border-radius: 8px;
@@ -1625,13 +1399,6 @@
 }
 
 // ── Version selector ───────────────────────────────────────────────────────
-.detail-card__desc {
-  font-size: 0.85rem;
-  color: var(--platform-text-muted);
-  margin: 0 0 1rem;
-  line-height: 1.5;
-}
-
 .feedback {
   font-size: 0.83rem;
   padding: 0.5rem 0.75rem;
@@ -1778,32 +1545,6 @@
 }
 
 // Logo preview in Ajustes tab
-.logo-preview-wrapper {
-  margin-top: 0.75rem;
-  padding: 0.75rem;
-  background: var(--platform-surface-alt, rgba(255, 255, 255, 0.04));
-  border: 1px solid var(--platform-border, rgba(255, 255, 255, 0.1));
-  border-radius: 8px;
-  text-align: center;
-}
-
-.logo-preview-img {
-  max-height: 80px;
-  max-width: 100%;
-  object-fit: contain;
-  border-radius: 4px;
-}
-
-.logo-preview-error {
-  font-size: 0.8rem;
-  color: var(--platform-danger, #ef4444);
-  margin: 0.5rem 0 0;
-
-  i {
-    margin-right: 0.25rem;
-  }
-}
-
 .oauth-alert {
   display: flex;
   align-items: flex-start;
@@ -1897,17 +1638,6 @@
 
 /* ── Capa moderna: hover de tarjetas y tabs ───────────────────────────── */
 .detail-card,
-.config-card {
-  transition:
-    border-color var(--transition-base),
-    box-shadow var(--transition-base),
-    transform var(--transition-base);
-
-  &:hover {
-    border-color: hsla(0, 0%, 100%, 0.12);
-  }
-}
-
 .tab-button.is-active {
   background: linear-gradient(135deg, hsla(199, 89%, 48%, 0.16) 0%, hsla(244, 75%, 64%, 0.16) 100%);
   border-color: hsla(244, 75%, 64%, 0.3);
@@ -2613,60 +2343,6 @@
 }
 
 // Validation badge
-.mp-validation-badge {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.85rem 1.25rem;
-  border-radius: 12px;
-  font-size: 0.88rem;
-  margin: 1.25rem 0 1.5rem;
-  line-height: 1.4;
-
-  &__main {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-
-    i {
-      font-size: 1.15rem;
-      flex-shrink: 0;
-    }
-  }
-
-  code {
-    font-size: 0.82rem;
-    background: rgba(255, 255, 255, 0.1);
-    padding: 0.2rem 0.5rem;
-    border-radius: 6px;
-    letter-spacing: 0.03em;
-  }
-
-  &__sep {
-    opacity: 0.4;
-  }
-
-  &__token {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-  }
-
-  &--valid {
-    background: hsla(142, 70%, 45%, 0.12);
-    border: 1px solid hsla(142, 70%, 45%, 0.35);
-    color: var(--platform-status-active-text, #4ade80);
-    box-shadow: 0 0 16px rgba(74, 222, 128, 0.08);
-  }
-
-  &--invalid {
-    background: rgba(248, 113, 113, 0.12);
-    border: 1px solid rgba(248, 113, 113, 0.35);
-    color: #f87171;
-  }
-}
-
 .btn-save-mp {
   padding: 0.8rem 1.65rem;
   border-radius: 10px;
@@ -2769,12 +2445,6 @@
 /* -------------------------------------------------------------
    SaaS Subscription Card & Master Pricing Controls
 ------------------------------------------------------------- */
-.sub-pricing-summary {
-  background: rgba(15, 23, 42, 0.6);
-  border: 1px solid var(--platform-border, rgba(255, 255, 255, 0.08));
-  border-radius: 10px;
-}
-
 .master-sub-controls {
   background: rgba(15, 23, 42, 0.55);
   border: 1px solid rgba(251, 191, 36, 0.25);
@@ -2856,20 +2526,6 @@
     border-color: #34d399;
     color: #ffffff;
     box-shadow: 0 2px 10px rgba(16, 185, 129, 0.15);
-  }
-}
-
-.btn-whatsapp {
-  background: rgba(37, 211, 102, 0.12);
-  border: 1px solid rgba(37, 211, 102, 0.35);
-  color: #25d366;
-  font-weight: 600;
-  transition: all 0.2s ease;
-
-  &:hover {
-    background: rgba(37, 211, 102, 0.25);
-    border-color: #25d366;
-    color: #ffffff;
   }
 }
 
@@ -4093,50 +3749,6 @@
 }
 
 /* Borrado puntual (pedido/cliente) */
-.purge-item-delete {
-  margin: 0.9rem 0 0.2rem;
-  padding-top: 0.9rem;
-  border-top: 1px dashed var(--platform-input-border);
-
-  &__label {
-    display: block;
-    font-size: 0.78rem;
-    font-weight: 700;
-    color: var(--platform-text-secondary);
-    margin-bottom: 0.5rem;
-  }
-
-  &__row {
-    display: grid;
-    grid-template-columns: 110px 1fr auto;
-    gap: 0.5rem;
-    align-items: center;
-
-    @media (max-width: 640px) {
-      grid-template-columns: 1fr;
-    }
-  }
-
-  &__error {
-    display: block;
-    margin-top: 0.5rem;
-    font-size: 0.78rem;
-    color: var(--platform-danger);
-  }
-
-  &__hint {
-    display: block;
-    margin-top: 0.5rem;
-    font-size: 0.75rem;
-    color: var(--platform-text-muted);
-
-    &--armed {
-      color: var(--platform-danger);
-      font-weight: 600;
-    }
-  }
-}
-
 /* ═══ Tema claro: contraste y colores legibles sobre los bloques nuevos ═══ */
 html[data-theme='light'] {
   .sub-summary {
@@ -4525,6 +4137,9 @@ html[data-theme='light'] {
 
 .detail-grid {
   gap: 1.15rem;
+  /* `stretch` (default) estiraba las tarjetas cortas a la altura de la más alta de la
+     fila, dejando bloques de espacio vacío dentro de la tarjeta. */
+  align-items: start;
 }
 
 .detail-card__title {
@@ -4607,20 +4222,6 @@ html[data-theme='light'] {
   font-size: 0.75rem;
   color: var(--platform-accent);
   text-decoration: none;
-}
-
-.ops-group-title {
-  grid-column: 1 / -1;
-  font-size: 0.72rem;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--platform-text-muted);
-  margin-top: 0.35rem;
-
-  &:first-child {
-    margin-top: 0;
-  }
 }
 
 /* Aviso de dominios extra (add-on pago) */
@@ -4769,6 +4370,75 @@ html[data-theme='light'] {
 
   i {
     font-size: 0.7rem;
+  }
+}
+
+/* ── Chip con copiado en 1 clic ────────────────────────────────────────── */
+.deploy-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+  padding: 0.1rem 0.25rem 0.1rem 0.4rem;
+  border: 1px solid var(--platform-card-border);
+  border-radius: var(--radius-sm);
+  background: var(--platform-hover-overlay);
+
+  code {
+    background: transparent;
+    border: 0;
+    padding: 0;
+    font-family: 'SFMono-Regular', ui-monospace, Menlo, Consolas, monospace;
+    font-size: 0.76rem;
+  }
+}
+
+.deploy-chip__copy {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.35rem;
+  height: 1.35rem;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--platform-text-muted);
+  font-size: 0.72rem;
+  cursor: pointer;
+  transition: var(--transition-base);
+
+  &:hover {
+    background: var(--platform-hover-overlay);
+    color: var(--platform-text-primary);
+  }
+}
+
+/* ── Dot de estado con pulso en el badge de canal ──────────────────────── */
+.deploy-channel::before {
+  content: '';
+  width: 0.44rem;
+  height: 0.44rem;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 0 0 currentColor;
+  animation: deploy-pulse 2s ease-out infinite;
+}
+
+.deploy-channel--test::before {
+  animation-duration: 1.4s;
+}
+
+@keyframes deploy-pulse {
+  0% {
+    box-shadow: 0 0 0 0 currentColor;
+  }
+
+  70% {
+    box-shadow: 0 0 0 0.3rem transparent;
+  }
+
+  100% {
+    box-shadow: 0 0 0 0 transparent;
   }
 }
 

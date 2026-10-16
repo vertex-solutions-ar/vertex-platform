@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { STOREFRONT_REPO } from '@core/utils/deploy-source.util';
 import {
+  formatVersionTag,
+  formatVersionTagOr,
   canDeployTestSources,
   deployChannelLabel,
   deploySourceCommitSuffix,
@@ -14,6 +16,32 @@ import {
 import type { Store } from '@core/models/store';
 
 const store = (partial: Partial<Store>): Store => ({ status: 'active', ...partial }) as Store;
+
+describe('formatVersionTag (bug del doble "v")', () => {
+  it('nunca duplica el prefijo v', () => {
+    // Regresión: Firestore guarda `templateVersion` como `v0.9.5` (completeVersionUpdate)
+    // y como `0.9.5` (completeStoreDeployment); la UI concatenaba y daba `vv0.9.5`.
+    expect(formatVersionTag('v0.9.5')).toBe('v0.9.5');
+    expect(formatVersionTag('0.9.5')).toBe('v0.9.5');
+    expect(formatVersionTag('vv0.9.5')).toBe('v0.9.5');
+    expect(formatVersionTag('V0.9.5')).toBe('v0.9.5');
+    expect(formatVersionTag(' v0.9.5 ')).toBe('v0.9.5');
+  });
+
+  it('cae a un placeholder con datos vacíos', () => {
+    expect(formatVersionTag(undefined)).toBe('v0.0.0');
+    expect(formatVersionTag(null)).toBe('v0.0.0');
+    expect(formatVersionTag('')).toBe('v0.0.0');
+    expect(formatVersionTagOr(undefined, '—')).toBe('—');
+    expect(formatVersionTagOr('v1.2.3', '—')).toBe('v1.2.3');
+  });
+
+  it('la etiqueta de fuente no duplica la v', () => {
+    expect(deploySourceLabel({ kind: 'release', ref: 'v0.9.6' }, '0.9.5')).toBe('Release v0.9.6');
+    expect(deploySourceShortLabel({ kind: 'release', ref: '0.9.6' })).toBe('v0.9.6');
+    expect(deploySourceShortLabel(undefined, 'v0.9.5')).toBe('v0.9.5');
+  });
+});
 
 describe('isStoreDevEnvironment', () => {
   it('detecta environment development', () => {
