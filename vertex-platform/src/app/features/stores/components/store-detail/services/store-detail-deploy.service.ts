@@ -380,6 +380,27 @@ export class StoreDetailDeployService {
     await this.run(store.id, pinned ? { kind: 'release', value: pinned } : undefined, false);
   }
 
+  /** Valor (SHA/ref) copiado hace instantes, para el feedback "¡Copiado!". */
+  readonly copiedValue = signal<string | null>(null);
+
+  /** Copia un SHA/ref al portapapeles con feedback efímero. */
+  async copy(value: string): Promise<void> {
+    if (!value) {
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(value);
+      this.copiedValue.set(value);
+      setTimeout(() => {
+        if (this.copiedValue() === value) {
+          this.copiedValue.set(null);
+        }
+      }, 1600);
+    } catch {
+      /* portapapeles no disponible: no es crítico */
+    }
+  }
+
   /** Habilita/deshabilita despliegues de prueba en tiendas que no son development. */
   async toggleAllowTestDeployments(enabled: boolean): Promise<void> {
     const store = this.store();

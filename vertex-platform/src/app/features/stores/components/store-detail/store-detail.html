@@ -299,7 +299,7 @@
                 @if (store()!.templateVersion) {
                   <dt>Versión plantilla</dt>
                   <dd class="text-accent">
-                    v{{ store()!.templateVersion }}
+                    {{ versionTag(store()!.templateVersion, '—') }}
                     @if (
                       (store()!.versionUpdateStatus === 'updating' ||
                         store()!.redeployStatus === 'deploying') &&
@@ -407,10 +407,29 @@
                   <div class="deploy-summary__item">
                     <dt>Fuente desplegada</dt>
                     <dd>
-                      <code
-                        >{{ sourceLabel(activeDeploySource(), store()!.templateVersion)
-                        }}{{ sourceCommitSuffix(activeDeploySource()) }}</code
-                      >
+                      <span class="deploy-chip">
+                        <code
+                          >{{ sourceLabel(activeDeploySource(), store()!.templateVersion)
+                          }}{{ sourceCommitSuffix(activeDeploySource()) }}</code
+                        >
+                        <button
+                          type="button"
+                          class="deploy-chip__copy"
+                          [attr.aria-label]="
+                            copiedValue() === sourceShortRefText()
+                              ? 'Copiado'
+                              : 'Copiar la fuente desplegada'
+                          "
+                          (click)="copySourceValue(sourceShortRefText())"
+                        >
+                          <i
+                            class="bi"
+                            [class.bi-clipboard]="copiedValue() !== sourceShortRefText()"
+                            [class.bi-check2]="copiedValue() === sourceShortRefText()"
+                            aria-hidden="true"
+                          ></i>
+                        </button>
+                      </span>
                       <a
                         class="deploy-summary__link"
                         [href]="sourceUrl(activeDeploySource())"
@@ -424,9 +443,7 @@
                   <div class="deploy-summary__item">
                     <dt>Release estable</dt>
                     <dd>
-                      <code>{{
-                        store()!.templateVersion ? 'v' + store()!.templateVersion : '—'
-                      }}</code>
+                      <code>{{ versionTag(store()!.templateVersion, '—') }}</code>
                     </dd>
                   </div>
                   <div class="deploy-summary__item">
@@ -674,9 +691,25 @@
                         <span>{{ resolveError() }}</span>
                       } @else if (preview(); as resolved) {
                         <i class="bi bi-check-circle-fill" aria-hidden="true"></i>
-                        <span
-                          >Se compilará <code>{{ resolved.commitSha.substring(0, 7) }}</code></span
+                        <span>
+                          Se compilará
+                          <code>{{ resolved.commitSha.substring(0, 7) }}</code>
+                        </span>
+                        <button
+                          type="button"
+                          class="deploy-chip__copy"
+                          [attr.aria-label]="
+                            copiedValue() === resolved.commitSha ? 'Copiado' : 'Copiar el SHA'
+                          "
+                          (click)="copySourceValue(resolved.commitSha)"
                         >
+                          <i
+                            class="bi"
+                            [class.bi-clipboard]="copiedValue() !== resolved.commitSha"
+                            [class.bi-check2]="copiedValue() === resolved.commitSha"
+                            aria-hidden="true"
+                          ></i>
+                        </button>
                         <span class="deploy-preview__msg">{{ resolved.commitMessage }}</span>
                         @if (resolved.commitDate) {
                           <span class="deploy-preview__date">{{
@@ -817,7 +850,8 @@
                     </p>
                     <p class="feedback feedback--warning">
                       Esto no proviene de una release etiquetada: el sitio público pasará a mostrar
-                      este código. La release estable v{{ store()!.templateVersion || '0.9.4' }}
+                      este código. La release estable
+                      {{ versionTag(store()!.templateVersion, '—') }}
                       sigue disponible para volver cuando quieras.
                     </p>
                     <div class="modal__actions">
