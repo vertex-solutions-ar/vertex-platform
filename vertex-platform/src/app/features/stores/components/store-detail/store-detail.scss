@@ -1518,7 +1518,7 @@
 
 .deploy-date {
   white-space: nowrap;
-  color: var(--platform-text-secondary) !important;
+  color: var(--platform-text-secondary);
   font-size: 0.8rem;
 }
 
@@ -1540,7 +1540,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: var(--platform-text-secondary) !important;
+  color: var(--platform-text-secondary);
   font-size: 0.82rem;
 }
 
@@ -2718,12 +2718,14 @@
     font-size: 0.72rem;
   }
 
-  /* Inputs y selects: fondo oscuro + foco índigo + esquinas suaves */
+  /* Inputs y selects: tokens del sistema (antes colores oscuros hardcodeados con
+     `!important`, que rompían el tema claro). El selector del componente tiene más
+     especificidad que la capa global, así que no hace falta `!important`. */
   .form-control,
   .form-select {
-    background: rgba(2, 6, 23, 0.55) !important;
-    border: 1px solid rgba(51, 65, 85, 0.7) !important;
-    color: #f1f5f9 !important;
+    background: var(--platform-input-bg);
+    border: 1px solid var(--platform-input-border);
+    color: var(--platform-text-primary);
     font-size: 0.875rem;
     border-radius: 0.5rem;
     padding: 0.6rem 0.85rem;
@@ -2732,9 +2734,9 @@
       box-shadow 0.15s ease;
 
     &:focus {
-      border-color: #6366f1 !important;
-      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.18) !important;
-      background: rgba(2, 6, 23, 0.75) !important;
+      border-color: var(--platform-accent);
+      box-shadow: 0 0 0 3px var(--platform-focus-ring);
+      background: var(--platform-input-bg);
     }
 
     &::placeholder {
@@ -3231,7 +3233,7 @@
 
 /* Controles maestros: tarjeta neutra (sin borde ámbar), labels legibles */
 .master-sub-controls {
-  border-color: rgba(148, 163, 184, 0.18) !important;
+  border-color: var(--platform-card-border);
 
   .payment-subcard {
     .form-label,
