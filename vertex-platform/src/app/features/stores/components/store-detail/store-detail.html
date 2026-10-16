@@ -773,9 +773,8 @@
                         [disabled]="isDeployBlocked()"
                         (click)="redeployStable()"
                       >
-                        <i class="bi bi-tag" aria-hidden="true"></i> Volver a v{{
-                          store()!.templateVersion || '—'
-                        }}
+                        <i class="bi bi-tag" aria-hidden="true"></i> Volver a
+                        {{ versionTag(store()!.templateVersion, '—') }}
                       </button>
                     }
                   </div>
