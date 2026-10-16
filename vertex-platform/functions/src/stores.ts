@@ -28,6 +28,7 @@ import {
   type ResolvedDeploySource,
 } from './deployment-source';
 import { verifyGitHubOidcToken } from './github-oidc';
+import { belongsToTenant } from './data-integrity';
 import type {
   InviteStaffPayload,
   RedeployStorePayload,
@@ -376,6 +377,13 @@ async function enqueueRuntimeCleanupTask(
   db: ReturnType<typeof getFirestore>,
   payload: {
     storeId?: string;
+    /**
+     * Slug/tenant de la tienda: es el valor que los documentos guardan en el campo
+     * `storeId` dentro del shard (el `storeId` de arriba es el ID del documento en la
+     * colección `stores`). Sin esto el purgado de datos buscaría por UUID y no
+     * encontraría nada, dejando datos huérfanos en el shard.
+     */
+    tenantSlug?: string;
     preferredOwnerId?: string;
     projectIds: string[];
     siteId: string;
@@ -386,6 +394,7 @@ async function enqueueRuntimeCleanupTask(
 ): Promise<void> {
   await db.collection('runtimeCleanupTasks').add({
     storeId: payload.storeId ?? null,
+    tenantSlug: payload.tenantSlug ?? null,
     preferredOwnerId: payload.preferredOwnerId ?? null,
     projectIds: payload.projectIds,
     siteId: payload.siteId,
@@ -1028,6 +1037,7 @@ export const deleteStore = onCall<{ storeId: string }>(
       defaultUrl?: string;
       provisioningOwnerId?: string;
       shardId?: string;
+      slug?: string;
     };
 
     const siteId = resolveRuntimeSiteId(store);
@@ -1065,6 +1075,7 @@ export const deleteStore = onCall<{ storeId: string }>(
     if (candidateProjectIds.length > 0) {
       await enqueueRuntimeCleanupTask(db, {
         storeId,
+        tenantSlug: store.slug || storeId,
         preferredOwnerId: store.provisioningOwnerId,
         projectIds: candidateProjectIds,
         siteId,
@@ -1141,16 +1152,20 @@ export const deleteStore = onCall<{ storeId: string }>(
 );
 
 /**
- * Borra TODOS los documentos de la tienda en un proyecto (shard) usando
- * collectionGroup queries por storeId — productos, órdenes, clientes, atributos,
- * configuracion, banners, páginas, settings, mail, reviews, store_payments.
- * Batch de 400 docs con presupuesto de tiempo para no exceder el timeout.
+ * Borra TODOS los documentos de un tenant en un proyecto (shard):
+ *  1) por campo `storeId` con collectionGroup (tolera subcolecciones), y
+ *  2) por convención de ID, para los documentos que no llevan `storeId` — entre ellos
+ *     los singletons de configuración, que antes quedaban huérfanos para siempre.
+ * Devuelve el conteo borrado por colección para poder auditar el resultado.
+ *
+ * IMPORTANTE: `tenant` es el slug/tenantId (el valor que los documentos guardan en
+ * `storeId`), NO el ID del documento en la colección `stores`.
  */
 async function deleteStoreDataInProject(
   db: ReturnType<typeof getFirestore>,
   projectId: string,
-  storeId: string,
-): Promise<void> {
+  tenant: string,
+): Promise<{ total: number; byCollection: Record<string, number> }> {
   const collections = [
     'products',
     'orders',
@@ -1163,19 +1178,23 @@ async function deleteStoreDataInProject(
     'mail',
     'reviews',
     'store_payments',
+    'system_health',
+    'admin_roles',
   ];
   const deadline = Date.now() + 120_000; // 2 min presupuesto
+  const byCollection: Record<string, number> = {};
+  let total = 0;
+  const shardDb = getFirestoreForProject(projectId);
   for (const collection of collections) {
     if (Date.now() > deadline) break;
+    let deletedInCollection = 0;
+    // 1) Documentos con campo storeId (incluye subcolecciones).
     try {
-      // collectionGroup sobre la DB del proyecto: admin SDK con firestore() del shard
-      const shardDb = getFirestoreForProject(projectId);
       let cursor: FirebaseFirestore.QueryDocumentSnapshot | null = null;
-      let deletedInCollection = 0;
       // eslint-disable-next-line no-constant-condition
       while (true) {
         if (Date.now() > deadline) break;
-        let query = shardDb.collectionGroup(collection).where('storeId', '==', storeId).limit(400);
+        let query = shardDb.collectionGroup(collection).where('storeId', '==', tenant).limit(400);
         if (cursor) {
           query = query.startAfter(cursor);
         }
@@ -1188,21 +1207,100 @@ async function deleteStoreDataInProject(
         cursor = snap.docs[snap.size - 1];
         if (snap.size < 400) break;
       }
-      if (deletedInCollection > 0) {
-        console.info(
-          `[runtimeCleanup] Eliminados ${deletedInCollection} docs de ${collection} (${storeId} en ${projectId})`,
-        );
+    } catch (err) {
+      console.warn(`[runtimeCleanup] No se pudieron borrar ${collection} de ${tenant}:`, err);
+    }
+    // 2) Documentos sin storeId identificables por su ID (singletons / IDs compuestos).
+    try {
+      const refs = await shardDb.collection(collection).listDocuments();
+      const stale = refs.filter((ref) => belongsToTenant(ref.id, tenant));
+      for (let i = 0; i < stale.length; i += 400) {
+        const batch = shardDb.batch();
+        stale.slice(i, i + 400).forEach((ref) => batch.delete(ref));
+        await batch.commit();
+        deletedInCollection += Math.min(400, stale.length - i);
       }
     } catch (err) {
-      console.warn(`[runtimeCleanup] No se pudieron borrar ${collection} de ${storeId}:`, err);
+      console.warn(`[runtimeCleanup] No se pudieron borrar docs por ID en ${collection}:`, err);
+    }
+    if (deletedInCollection > 0) {
+      byCollection[collection] = deletedInCollection;
+      total += deletedInCollection;
+      console.info(
+        `[runtimeCleanup] Eliminados ${deletedInCollection} docs de ${collection} (${tenant} en ${projectId})`,
+      );
     }
   }
+  return { total, byCollection };
+}
+
+/**
+ * Borra los archivos del tenant en Storage (`stores/<tenant>/`).
+ * El purgado de Firestore por sí solo dejaba las imágenes huérfanas en el bucket del
+ * shard, que se acumulaban indefinidamente tras borrar una tienda.
+ */
+async function deleteStoreStorageObjects(
+  db: ReturnType<typeof getFirestore>,
+  preferredOwnerId: string | undefined,
+  projectId: string,
+  tenant: string,
+): Promise<number> {
+  const bucket = `${projectId}.firebasestorage.app`;
+  const prefix = `stores/${tenant}/`;
+  let deleted = 0;
+  try {
+    await withAnyProvisioningOwner(db, preferredOwnerId, async (auth) => {
+      const tokenRes = await auth.getAccessToken();
+      const headers = {
+        Authorization: `Bearer ${tokenRes.token}`,
+        'x-goog-user-project': PLATFORM_PROJECT,
+      };
+      let pageToken: string | undefined;
+      do {
+        const listUrl =
+          `https://firebasestorage.googleapis.com/v1/b/${bucket}/o` +
+          `?prefix=${encodeURIComponent(prefix)}&maxResults=1000` +
+          (pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : '');
+        const listRes = await fetch(listUrl, { method: 'GET', headers });
+        if (!listRes.ok) {
+          throw new Error(`Storage list failed: ${listRes.status} ${listRes.statusText}`);
+        }
+        const body = (await listRes.json()) as {
+          items?: Array<{ name?: string }>;
+          nextPageToken?: string;
+        };
+        for (const item of body.items ?? []) {
+          const name = item.name;
+          if (!name) continue;
+          const delRes = await fetch(
+            `https://firebasestorage.googleapis.com/v1/b/${bucket}/o/${encodeURIComponent(name)}`,
+            { method: 'DELETE', headers },
+          );
+          if (delRes.ok || delRes.status === 404) deleted += 1;
+        }
+        pageToken = body.nextPageToken;
+      } while (pageToken);
+    });
+  } catch (err) {
+    console.warn(
+      `[runtimeCleanup] No se pudieron borrar objetos de Storage de ${tenant} en ${projectId}:`,
+      err,
+    );
+  }
+  if (deleted > 0) {
+    console.info(
+      `[runtimeCleanup] Eliminados ${deleted} objetos de Storage de ${tenant} (${prefix} en ${bucket})`,
+    );
+  }
+  return deleted;
 }
 
 /**
  * Obtiene una instancia de Firestore admin para un proyecto de shard.
+ * Exportada para que los chequeos de integridad (`data-integrity.ts`) reusen
+ * exactamente la misma conexión multi-proyecto.
  */
-function getFirestoreForProject(projectId: string): FirebaseFirestore.Firestore {
+export function getFirestoreForProject(projectId: string): FirebaseFirestore.Firestore {
   return (getFirestoreForProjectCache[projectId] ??= firestoreForProject(projectId));
 }
 
@@ -1237,6 +1335,12 @@ export const processRuntimeCleanupTask = onDocumentCreated(
       projectIds?: string[];
       siteId?: string;
       storeId?: string;
+      /**
+       * Slug/tenant de la tienda — el valor que los documentos del shard guardan en
+       * su campo `storeId`. Es lo que usa el purgado de datos; `storeId` es el ID del
+       * documento de la colección `stores` y NO coincide con lo que hay en el shard.
+       */
+      tenantSlug?: string | null;
       runtimeMode?: StoreRuntimeMode;
       deleteProject?: boolean;
       attempts?: number;
@@ -1247,6 +1351,10 @@ export const processRuntimeCleanupTask = onDocumentCreated(
     );
     const siteId = (task.siteId || 'default').trim() || 'default';
     const runtimeMode = task.runtimeMode ?? 'dedicated-project';
+    // El purgado de datos se hace por slug/tenant (lo que los documentos guardan en
+    // `storeId`). `storeId` queda como fallback para tareas encoladas antes de que
+    // existiera `tenantSlug`.
+    const tenant = (task.tenantSlug || task.storeId || '').trim();
 
     if (projectIds.length === 0) {
       await taskRef.set(
@@ -1384,9 +1492,27 @@ export const processRuntimeCleanupTask = onDocumentCreated(
             throw lastHostingError;
           }
 
-          // 3. Borrado TOTAL de los datos de la tienda en el shard (collectionGroup por storeId)
-          if (task.storeId) {
-            await deleteStoreDataInProject(db, projectId, task.storeId);
+          // 3. Borrado TOTAL de los datos del tenant en el shard: por campo storeId y
+          //    por convención de ID (singletons de configuración sin storeId), más los
+          //    archivos de Storage. Dejar el conteo en el log permite auditar el purgado.
+          if (tenant) {
+            const purged = await deleteStoreDataInProject(db, projectId, tenant);
+            const storageDeleted = await deleteStoreStorageObjects(
+              db,
+              task.preferredOwnerId ?? undefined,
+              projectId,
+              tenant,
+            );
+            console.info(
+              `[runtimeCleanup] Purga de ${tenant} en ${projectId}: ${purged.total} docs, ` +
+                `${storageDeleted} archivos · ${JSON.stringify(purged.byCollection)}`,
+            );
+            if (purged.total === 0 && storageDeleted === 0) {
+              console.warn(
+                `[runtimeCleanup] La purga de ${tenant} en ${projectId} no borró nada: ` +
+                  'verificá tenantSlug (debe ser el slug del store, no su ID de documento).',
+              );
+            }
           }
 
           // 4. Si el shard desechable quedó vacío (deleteProject flag + opt-in),
