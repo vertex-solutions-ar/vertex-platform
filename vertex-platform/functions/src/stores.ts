@@ -2361,8 +2361,11 @@ export const inviteStaff = onCall<InviteStaffPayload>(
             method: 'PATCH',
             body: {
               fields: {
+                email: { stringValue: normalizedEmail },
                 role: { stringValue: normalizedRole },
                 tenantId: { stringValue: tenantId },
+                storeId: { stringValue: tenantId },
+                status: { stringValue: 'active' },
                 source: { stringValue: 'vertex-platform-invite' },
                 updatedAt: { timestampValue: new Date().toISOString() },
               },
