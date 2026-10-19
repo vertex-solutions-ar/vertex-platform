@@ -2886,6 +2886,13 @@ async function executeProvisioningSteps(storeId: string): Promise<void> {
           );
         }
 
+        if (!oauthClientId) {
+          const env = resolvePlatformEnvironment(PLATFORM_PROJECT);
+          const { getMasterOAuthClientId } = await import('./shard-readiness');
+          oauthClientId = process.env['GOOGLE_OAUTH_CLIENT_ID'] || getMasterOAuthClientId(env);
+          oauthClientSecret = process.env['GOOGLE_OAUTH_CLIENT_SECRET'] || '';
+        }
+
         if (oauthClientId && oauthClientSecret) {
           try {
             const bodyData: Record<string, unknown> = {
@@ -3001,8 +3008,11 @@ async function executeProvisioningSteps(storeId: string): Promise<void> {
             method: 'PATCH',
             body: {
               fields: {
+                email: { stringValue: normalizedOwnerEmail },
                 role: { stringValue: 'owner' },
+                storeId: { stringValue: tenantId },
                 tenantId: { stringValue: tenantId },
+                status: { stringValue: 'active' },
                 source: { stringValue: 'platform-provisioning' },
                 updatedAt: { timestampValue: new Date().toISOString() },
               },
@@ -3019,13 +3029,38 @@ async function executeProvisioningSteps(storeId: string): Promise<void> {
       // Also write to the local platform database under 'admin_roles' for development / fallback reference
       try {
         await db.collection('admin_roles').doc(compositeKey).set({
+          email: normalizedOwnerEmail,
           role: 'owner',
+          storeId: tenantId,
           tenantId: tenantId,
+          status: 'active',
           source: 'platform-provisioning',
           updatedAt: FieldValue.serverTimestamp(),
         });
       } catch (localErr) {
         console.error('Failed to write owner role to local platform DB:', localErr);
+      }
+
+      // Immediate Custom User Claims injection if user already exists in Firebase Authentication
+      try {
+        const { getAuth } = await import('firebase-admin/auth');
+        const userRecord = await getAuth().getUserByEmail(normalizedOwnerEmail);
+        if (userRecord?.uid) {
+          await getAuth().setCustomUserClaims(userRecord.uid, {
+            role: 'owner',
+            tenantId,
+            storeId: tenantId,
+            admin: true,
+          });
+          console.info(
+            `[provisioning:initAdmin] Pre-injected custom user claims for owner ${normalizedOwnerEmail} on tenant ${tenantId}`,
+          );
+        }
+      } catch (authClaimsErr) {
+        // User may not be registered in Auth yet; will sync upon first Google sign-in
+        console.info(
+          `[provisioning:initAdmin] Owner user ${normalizedOwnerEmail} not yet in Auth (claims will sync on login)`,
+        );
       }
 
       const loginUrl = runtimeSiteId
