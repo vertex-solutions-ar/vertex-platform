@@ -181,9 +181,9 @@ export function assertDeploySourceAllowed(
   );
 }
 
-/** `v0.9.5` / `0.9.5` → `0.9.5`. */
+/** `v0.9.5` / `vv0.9.5` / `0.9.5` → `0.9.5`. */
 export function normalizeReleaseVersion(value: string): string {
-  return value.trim().replace(/^v/, '');
+  return value.trim().replace(/^v+/i, '');
 }
 
 /** Construye el `gitRef` que viaja a GitHub Actions a partir de una fuente resuelta. */

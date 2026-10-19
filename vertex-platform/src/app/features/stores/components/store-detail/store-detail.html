@@ -275,7 +275,7 @@
       <div class="tab-content">
         <!-- Tab 1: Orquestación GCP -->
         @if (activeTab() === 'orquestacion') {
-          <div class="detail-grid">
+          <div class="deployment-dashboard-grid">
             <!-- Info card -->
             <div class="detail-card">
               <h2 class="detail-card__title">Información general</h2>
@@ -663,6 +663,7 @@
                     <button
                       type="button"
                       class="deploy-submit"
+                      [class.deploy-submit--current]="isCurrentVersion()"
                       [disabled]="
                         isDeployBlocked() || !!deploySourceError() || !deploySourceValue()
                       "

@@ -13,23 +13,24 @@ export const STOREFRONT_REPO = 'vertex-solutions-ar/ecommerce-vertex';
 const BRANCH_REF_PATTERN = /^[A-Za-z0-9._/-]+$/;
 const COMMIT_SHA_PATTERN = /^[0-9a-fA-F]{7,40}$/;
 
+import {
+  normalizeVersionTag,
+  normalizeVersionTagOr,
+  cleanVersionNumber,
+} from './version.utils';
+
+export { normalizeVersionTag, normalizeVersionTagOr, cleanVersionNumber };
+
 /**
  * Normaliza un tag de versión para mostrarlo: garantiza **un solo** prefijo `v`.
- *
- * El dato viene inconsistente desde Firestore: `completeVersionUpdate` guarda
- * `templateVersion` como `v0.9.5` y `completeStoreDeployment` como `0.9.5`. Sin esto la UI
- * concatenaba a ciegas y renderizaba `vv0.9.5`.
  */
 export function formatVersionTag(version?: string | null): string {
-  return formatVersionTagOr(version, 'v0.0.0');
+  return normalizeVersionTag(version);
 }
 
 /** Igual que `formatVersionTag` pero devuelve el placeholder cuando no hay dato. */
 export function formatVersionTagOr(version: string | null | undefined, fallback: string): string {
-  const cleaned = String(version ?? '')
-    .trim()
-    .replace(/^v+/i, '');
-  return cleaned ? `v${cleaned}` : fallback;
+  return normalizeVersionTagOr(version, fallback);
 }
 
 /**
