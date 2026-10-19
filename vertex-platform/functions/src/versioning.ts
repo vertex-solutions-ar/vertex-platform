@@ -432,10 +432,12 @@ export const updateStoreVersion = onCall<{ storeId: string; version: string }>(
       throw new HttpsError('permission-denied', 'Only platform admins can update store versions.');
     }
 
-    const { storeId, version } = request.data;
+    const { storeId } = request.data;
+    let { version } = request.data;
     if (!storeId || !version) {
       throw new HttpsError('invalid-argument', 'storeId and version are required.');
     }
+    version = version.trim().replace(/^v+/i, '');
 
     const db = getFirestore();
     const storeRef = db.collection('stores').doc(storeId);
