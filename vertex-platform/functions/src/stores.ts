@@ -2539,9 +2539,19 @@ export const getStoreStaff = onCall<{ storeId: string }>(
     }
 
     const db = getFirestore();
-    const storeSnap = await db.collection('stores').doc(storeId).get();
-    if (!storeSnap.exists) throw new HttpsError('not-found', 'Store not found.');
+    let storeSnap = await db.collection('stores').doc(storeId).get();
+    let resolvedStoreId = storeId;
+    let resolvedSlug = storeId;
 
+    if (!storeSnap.exists) {
+      const slugQuery = await db.collection('stores').where('slug', '==', storeId).limit(1).get();
+      if (slugQuery.empty) {
+        throw new HttpsError('not-found', `Store not found for identifier: ${storeId}`);
+      }
+      storeSnap = slugQuery.docs[0];
+    }
+
+    resolvedStoreId = storeSnap.id;
     const store = storeSnap.data() as {
       ownerEmail?: string;
       clientEmail?: string;
@@ -2552,8 +2562,8 @@ export const getStoreStaff = onCall<{ storeId: string }>(
       runtimeProjectId?: string;
       provisioningOwnerId?: string;
     };
+    resolvedSlug = store.slug || resolvedStoreId;
     const projectId = resolveRuntimeProjectId(store);
-    const tenantId = store.slug || storeId;
 
     const users: Array<{
       uid: string;
@@ -2580,9 +2590,13 @@ export const getStoreStaff = onCall<{ storeId: string }>(
       });
     }
 
-    // 2. Consultar subcolección stores/{storeId}/staff en Platform Firestore
+    // 2. Consultar subcolección stores/{resolvedStoreId}/staff en Platform Firestore
     try {
-      const staffSnap = await db.collection('stores').doc(storeId).collection('staff').get();
+      const staffSnap = await db
+        .collection('stores')
+        .doc(resolvedStoreId)
+        .collection('staff')
+        .get();
       for (const doc of staffSnap.docs) {
         const data = doc.data();
         const email = (data['email'] || '').trim();
@@ -2612,9 +2626,11 @@ export const getStoreStaff = onCall<{ storeId: string }>(
           const data = doc.data();
           const docTenant = data['tenantId'] || data['storeId'] || '';
           const matchesTenant =
-            docTenant === tenantId ||
+            docTenant === resolvedSlug ||
+            docTenant === resolvedStoreId ||
             docTenant === storeId ||
-            doc.id.startsWith(`${tenantId}_`) ||
+            doc.id.startsWith(`${resolvedSlug}_`) ||
+            doc.id.startsWith(`${resolvedStoreId}_`) ||
             doc.id.startsWith(`${storeId}_`);
 
           if (matchesTenant) {
@@ -2652,7 +2668,7 @@ export const getStoreStaff = onCall<{ storeId: string }>(
     try {
       const invitationsSnap = await db
         .collection('stores')
-        .doc(storeId)
+        .doc(resolvedStoreId)
         .collection('invitations')
         .get();
       invitations = invitationsSnap.docs.map((d) => {
@@ -2699,7 +2715,7 @@ export const getStoreStaff = onCall<{ storeId: string }>(
               inv.status = 'accepted';
               await db
                 .collection('stores')
-                .doc(storeId)
+                .doc(resolvedStoreId)
                 .collection('invitations')
                 .doc(inv.id)
                 .update({ status: 'accepted', acceptedAt: new Date() })
