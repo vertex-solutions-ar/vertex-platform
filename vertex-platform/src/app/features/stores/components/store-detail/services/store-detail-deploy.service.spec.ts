@@ -139,7 +139,8 @@ describe('StoreDetailDeployService', () => {
 
     it('etiqueta la acción según la fuente elegida', async () => {
       await sync(buildStore());
-      expect(service.actionLabel()).toBe('Re-desplegar v0.9.5');
+      expect(service.isCurrentVersion()).toBe(true);
+      expect(service.actionLabel()).toBe('Redesplegar v0.9.5');
 
       service.setKind('branch');
       service.setValue('feat/x');

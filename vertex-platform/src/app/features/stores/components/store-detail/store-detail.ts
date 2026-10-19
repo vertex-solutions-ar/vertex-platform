@@ -202,6 +202,7 @@ export class StoreDetail implements OnInit {
   readonly deploySourceValue = this.deploy.value;
   readonly deploySourceError = this.deploy.validationError;
   readonly isDeployBlocked = this.deploy.isBusy;
+  readonly isCurrentVersion = this.deploy.isCurrentVersion;
   readonly deployActionLabel = this.deploy.actionLabel;
   readonly deploySourceHint = this.deploy.hint;
   readonly sourceKinds = this.deploy.sourceKinds;

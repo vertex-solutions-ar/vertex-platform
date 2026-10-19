@@ -17,6 +17,7 @@ import {
   deploySourceShortLabel,
   isStoreDevEnvironment,
   isTestDeploySource,
+  normalizeVersionTag,
   validateDeploySourceValue,
 } from '@core/utils/deploy-source.util';
 import { StoreDetailOrchestrationService } from './store-detail-orchestration.service';
@@ -144,13 +145,23 @@ export class StoreDetailDeployService {
     () => validateDeploySourceValue(this.kind(), this.value()) ?? '',
   );
 
+  /** Determina si la versión seleccionada coincide con la actualmente desplegada en la tienda */
+  readonly isCurrentVersion = computed<boolean>(() => {
+    if (this.kind() !== 'release') {
+      return false;
+    }
+    const deployed = normalizeVersionTag(this.store()?.templateVersion || this.store()?.appVersion);
+    const target = normalizeVersionTag(this.value());
+    return deployed === target;
+  });
+
   /** Etiqueta del botón de despliegue, según la fuente elegida. */
   readonly actionLabel = computed<string>(() => {
     const value = this.value();
     switch (this.kind()) {
       case 'release': {
-        const same = (this.store()?.templateVersion || '').replace(/^v/, '') === value;
-        return same ? `Re-desplegar v${value}` : `Actualizar a v${value}`;
+        const targetTag = normalizeVersionTag(value);
+        return this.isCurrentVersion() ? `Redesplegar ${targetTag}` : `Actualizar a ${targetTag}`;
       }
       case 'branch':
         return `Desplegar rama ${value}`;
