@@ -339,17 +339,8 @@ export async function ensureWarmShardAvailable(forceCreate = false): Promise<str
 
     // 5. Initialize Default Storage Bucket and CORS
     try {
-      const bucketName = `${projectId}.firebasestorage.app`;
-      await apiFetch(
-        auth,
-        `https://firebasestorage.googleapis.com/v1beta/projects/${projectId}/defaultBucket`,
-        {
-          method: 'POST',
-          body: { location: 'us-central1' },
-        },
-      );
-      const { configureBucketCors } = await import('./provisioning');
-      await configureBucketCors(bucketName);
+      const { ensureStorageDefaultBucket } = await import('./provisioning');
+      await ensureStorageDefaultBucket(auth, projectId);
     } catch (err) {
       console.warn(
         `[ensureWarmShardAvailable] Non-fatal Storage bucket init issue for ${projectId}:`,
