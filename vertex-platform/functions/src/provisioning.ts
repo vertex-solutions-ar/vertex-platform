@@ -599,6 +599,10 @@ export async function ensureStorageDefaultBucket(
 ): Promise<string> {
   const bucketName = `${projectId}.firebasestorage.app`;
   try {
+    // 1. Auto-heal: Garantizar que la API de Firebase Storage esté habilitada en el proyecto
+    await ensureServiceEnabled(auth, projectId, 'firebasestorage.googleapis.com');
+
+    // 2. Crear defaultBucket si no existe
     await apiFetch(
       auth,
       `https://firebasestorage.googleapis.com/v1beta/projects/${projectId}/defaultBucket`,
@@ -619,6 +623,14 @@ export async function ensureStorageDefaultBucket(
       );
     }
   }
+
+  // 3. Garantizar configuración de CORS para uploads desde el navegador
+  try {
+    await configureBucketCors(bucketName);
+  } catch (corsErr) {
+    logger.warn(`[Storage] Non-fatal issue applying CORS to ${bucketName}:`, corsErr);
+  }
+
   return bucketName;
 }
 
