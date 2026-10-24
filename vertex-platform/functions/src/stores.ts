@@ -2352,27 +2352,80 @@ export const inviteStaff = onCall<InviteStaffPayload>(
       }
 
       try {
-        const encodedEmail = encodeURIComponent(normalizedEmail);
-        const compositeKey = `${tenantId}_${encodedEmail}`;
-        await apiFetch(
-          auth,
-          `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/admin_roles/${compositeKey}`,
-          {
-            method: 'PATCH',
-            body: {
-              fields: {
-                email: { stringValue: normalizedEmail },
-                role: { stringValue: normalizedRole },
-                tenantId: { stringValue: tenantId },
-                storeId: { stringValue: tenantId },
-                status: { stringValue: 'active' },
-                source: { stringValue: 'vertex-platform-invite' },
-                updatedAt: { timestampValue: new Date().toISOString() },
+        const candidateKeys = Array.from(
+          new Set([
+            `${tenantId}_${normalizedEmail}`,
+            store.runtimeSiteId ? `${store.runtimeSiteId}_${normalizedEmail}` : null,
+          ]),
+        ).filter((k): k is string => Boolean(k));
+
+        for (const compositeKey of candidateKeys) {
+          const encodedKey = encodeURIComponent(compositeKey);
+          await apiFetch(
+            auth,
+            `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/admin_roles/${encodedKey}`,
+            {
+              method: 'PATCH',
+              body: {
+                fields: {
+                  email: { stringValue: normalizedEmail },
+                  role: { stringValue: normalizedRole },
+                  tenantId: { stringValue: tenantId },
+                  storeId: { stringValue: tenantId },
+                  status: { stringValue: 'active' },
+                  source: { stringValue: 'vertex-platform-invite' },
+                  updatedAt: { timestampValue: new Date().toISOString() },
+                },
               },
             },
-            quotaProject: projectId,
-          },
-        );
+          );
+
+          // Write to local platform DB for platform tracking
+          try {
+            await db.collection('admin_roles').doc(compositeKey).set(
+              {
+                email: normalizedEmail,
+                role: normalizedRole,
+                tenantId: tenantId,
+                storeId: tenantId,
+                status: 'active',
+                source: 'vertex-platform-invite',
+                updatedAt: new Date(),
+              },
+              { merge: true },
+            );
+          } catch (platErr) {
+            console.warn(`[inviteStaff] Local admin_roles write note (${compositeKey}):`, platErr);
+          }
+
+          // Write to master storefront DB if different from current shard
+          try {
+            const { getMasterStorefrontProjectId } = await import('./provisioning');
+            const masterStorefrontProjectId = getMasterStorefrontProjectId();
+            if (masterStorefrontProjectId && masterStorefrontProjectId !== projectId) {
+              await apiFetch(
+                auth,
+                `https://firestore.googleapis.com/v1/projects/${masterStorefrontProjectId}/databases/(default)/documents/admin_roles/${encodedKey}`,
+                {
+                  method: 'PATCH',
+                  body: {
+                    fields: {
+                      email: { stringValue: normalizedEmail },
+                      role: { stringValue: normalizedRole },
+                      tenantId: { stringValue: tenantId },
+                      storeId: { stringValue: tenantId },
+                      status: { stringValue: 'active' },
+                      source: { stringValue: 'vertex-platform-invite' },
+                      updatedAt: { timestampValue: new Date().toISOString() },
+                    },
+                  },
+                },
+              );
+            }
+          } catch (masterErr) {
+            console.warn(`[inviteStaff] Master admin_roles write note (${compositeKey}):`, masterErr);
+          }
+        }
       } catch (err) {
         console.error(`[inviteStaff] Failed to write admin_roles in ${projectId}:`, err);
         throw new HttpsError(

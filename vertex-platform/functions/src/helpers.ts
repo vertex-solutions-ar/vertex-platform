@@ -537,8 +537,11 @@ export async function apiFetch(
         Authorization: `Bearer ${tokenRes.token}`,
         'Content-Type': 'application/json',
       };
-      if (options.quotaProject) {
-        headers['x-goog-user-project'] = options.quotaProject;
+      const effectiveQuotaProject =
+        options.quotaProject ??
+        (url.includes('identitytoolkit.googleapis.com') ? PLATFORM_PROJECT : undefined);
+      if (effectiveQuotaProject) {
+        headers['x-goog-user-project'] = effectiveQuotaProject;
       }
       const res = await fetch(url, {
         method: options.method ?? 'GET',
@@ -555,6 +558,17 @@ export async function apiFetch(
         if (res.status === 429 || text.includes('RESOURCE_EXHAUSTED') || text.includes('429')) {
           if (!canRetry(i)) break;
           await sleepBackoff(i, `Quota/Rate limit exhausted on ${url}: ${text}.`);
+          continue;
+        }
+        if (
+          res.status === 403 &&
+          text.includes('The identitytoolkit.googleapis.com API requires a quota project') &&
+          options.quotaProject !== PLATFORM_PROJECT
+        ) {
+          console.warn(
+            `[apiFetch] identitytoolkit.googleapis.com requires a quota project. Retrying with platform quota project (${PLATFORM_PROJECT})...`,
+          );
+          options.quotaProject = PLATFORM_PROJECT;
           continue;
         }
         const isIamPropagation =

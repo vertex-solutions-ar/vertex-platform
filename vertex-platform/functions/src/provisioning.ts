@@ -2998,47 +2998,85 @@ async function executeProvisioningSteps(storeId: string): Promise<void> {
       };
       await retry(initIdentityPlatform, 5, 8000);
 
-      const compositeKey = `${tenantId}_${normalizedOwnerEmail}`;
-      const encodedKey = encodeURIComponent(compositeKey);
-      try {
-        await apiFetch(
-          auth,
-          `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/admin_roles/${encodedKey}`,
-          {
-            method: 'PATCH',
-            body: {
-              fields: {
-                email: { stringValue: normalizedOwnerEmail },
-                role: { stringValue: 'owner' },
-                storeId: { stringValue: tenantId },
-                tenantId: { stringValue: tenantId },
-                status: { stringValue: 'active' },
-                source: { stringValue: 'platform-provisioning' },
-                updatedAt: { timestampValue: new Date().toISOString() },
+      const candidateKeys = Array.from(
+        new Set([
+          `${tenantId}_${normalizedOwnerEmail}`,
+          runtimeSiteId ? `${runtimeSiteId}_${normalizedOwnerEmail}` : null,
+        ]),
+      ).filter((k): k is string => Boolean(k));
+
+      for (const compositeKey of candidateKeys) {
+        const encodedKey = encodeURIComponent(compositeKey);
+        try {
+          await apiFetch(
+            auth,
+            `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/admin_roles/${encodedKey}`,
+            {
+              method: 'PATCH',
+              body: {
+                fields: {
+                  email: { stringValue: normalizedOwnerEmail },
+                  role: { stringValue: 'owner' },
+                  storeId: { stringValue: tenantId },
+                  tenantId: { stringValue: tenantId },
+                  status: { stringValue: 'active' },
+                  source: { stringValue: 'platform-provisioning' },
+                  updatedAt: { timestampValue: new Date().toISOString() },
+                },
               },
             },
-          },
-        );
-      } catch (roleErr) {
-        console.warn(
-          `[provisioning:initAdmin] Shard admin_roles write non-fatal on ${projectId}:`,
-          roleErr,
-        );
-      }
+          );
+        } catch (roleErr) {
+          console.warn(
+            `[provisioning:initAdmin] Shard admin_roles write non-fatal on ${projectId} (${compositeKey}):`,
+            roleErr,
+          );
+        }
 
-      // Also write to the local platform database under 'admin_roles' for development / fallback reference
-      try {
-        await db.collection('admin_roles').doc(compositeKey).set({
-          email: normalizedOwnerEmail,
-          role: 'owner',
-          storeId: tenantId,
-          tenantId: tenantId,
-          status: 'active',
-          source: 'platform-provisioning',
-          updatedAt: FieldValue.serverTimestamp(),
-        });
-      } catch (localErr) {
-        console.error('Failed to write owner role to local platform DB:', localErr);
+        // Also write to the local platform database under 'admin_roles' for development / fallback reference
+        try {
+          await db.collection('admin_roles').doc(compositeKey).set({
+            email: normalizedOwnerEmail,
+            role: 'owner',
+            storeId: tenantId,
+            tenantId: tenantId,
+            status: 'active',
+            source: 'platform-provisioning',
+            updatedAt: FieldValue.serverTimestamp(),
+          });
+        } catch (localErr) {
+          console.error('Failed to write owner role to local platform DB:', localErr);
+        }
+
+        // Write to Master Storefront DB if different from current shard
+        try {
+          const masterStorefrontProjectId = getMasterStorefrontProjectId();
+          if (masterStorefrontProjectId && masterStorefrontProjectId !== projectId) {
+            await apiFetch(
+              auth,
+              `https://firestore.googleapis.com/v1/projects/${masterStorefrontProjectId}/databases/(default)/documents/admin_roles/${encodedKey}`,
+              {
+                method: 'PATCH',
+                body: {
+                  fields: {
+                    email: { stringValue: normalizedOwnerEmail },
+                    role: { stringValue: 'owner' },
+                    storeId: { stringValue: tenantId },
+                    tenantId: { stringValue: tenantId },
+                    status: { stringValue: 'active' },
+                    source: { stringValue: 'platform-provisioning' },
+                    updatedAt: { timestampValue: new Date().toISOString() },
+                  },
+                },
+              },
+            );
+          }
+        } catch (masterRoleErr) {
+          console.warn(
+            `[provisioning:initAdmin] Master admin_roles write non-fatal (${compositeKey}):`,
+            masterRoleErr,
+          );
+        }
       }
 
       // Immediate Custom User Claims injection if user already exists in Firebase Authentication
