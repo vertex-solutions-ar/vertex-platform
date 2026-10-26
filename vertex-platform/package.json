@@ -81,7 +81,7 @@
     "@angular/cli": "^22.2.3",
     "@angular/compiler-cli": "^22.2.3",
     "@clack/prompts": "^1.8.1",
-    "@commitlint/cli": "^21.2.3",
+    "@commitlint/cli": "^21.2.4",
     "@commitlint/config-conventional": "^21.0.2",
     "@google-cloud/secret-manager": "^6.3.0",
     "@playwright/test": "^1.64.1",
