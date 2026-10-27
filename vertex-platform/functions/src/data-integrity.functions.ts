@@ -5,6 +5,8 @@ import {
   auditShardSnapshot,
   collectAssetUrls,
   findInvalidShardEnvironments,
+  findMissingAdminClaims,
+  findMissingStoreOwnerRoles,
   findUnreachableAssets,
   integrityAlertKey,
   readShardSnapshot,
@@ -12,6 +14,7 @@ import {
   type IntegrityFinding,
 } from './data-integrity';
 import { getFirestoreForProject } from './stores';
+import { getTenantAuth } from './helpers';
 
 /** Alertas que este auditor posee: sólo estas se auto-resuelven. */
 const ALERT_KEY_PREFIX = 'data-integrity:';
@@ -22,6 +25,7 @@ interface StoreDoc {
   id: string;
   slug?: string;
   status?: string;
+  ownerEmail?: string;
   firebaseProjectId?: string;
   runtimeProjectId?: string;
   shardId?: string;
@@ -92,6 +96,41 @@ export const auditDataIntegrityDaily = onSchedule(
           getFirestoreForProject(projectId),
         );
         findings.push(...auditShardSnapshot(snapshot, hint));
+        findings.push(...findMissingStoreOwnerRoles(stores, snapshot));
+
+        // Auditar claims de usuarios administradores en Identity Platform del shard
+        try {
+          const shardAuth = getTenantAuth(projectId);
+          const listUsersResult = await shardAuth.listUsers(100);
+          const adminRoles = snapshot.collections['admin_roles'] ?? [];
+          const adminEmails = new Set(
+            adminRoles
+              .map((d) => {
+                const em = ((d.data?.['email'] as string) || '').trim().toLowerCase();
+                if (em) return em;
+                if (d.id.includes('@')) {
+                  const parts = d.id.split('_');
+                  return parts[parts.length - 1].trim().toLowerCase();
+                }
+                return '';
+              })
+              .filter(Boolean),
+          );
+          findings.push(
+            ...findMissingAdminClaims(
+              projectId,
+              listUsersResult.users.map((u) => ({
+                uid: u.uid,
+                email: u.email,
+                claims: u.customClaims as Record<string, unknown> | undefined,
+              })),
+              adminEmails,
+            ),
+          );
+        } catch (authErr) {
+          logger.warn(`[DataIntegrity] No se pudo auditar Auth de ${projectId}:`, authErr);
+        }
+
         assetUrls.push(...collectAssetUrls(snapshot));
         auditedProjects += 1;
       } catch (err) {
