@@ -79,7 +79,9 @@ export type IntegrityKind =
   | 'dangling_ref'
   | 'invalid_enum'
   | 'missing_singleton'
-  | 'unreachable_asset';
+  | 'unreachable_asset'
+  | 'missing_admin_claim'
+  | 'missing_admin_role';
 
 export interface IntegrityFinding {
   /** Clave estable y deduplicable para el Centro de Alertas. */
@@ -317,6 +319,82 @@ export async function findUnreachableAssets(
         'Se mostrarán imágenes quebradas en el storefront.',
     },
   ];
+}
+
+/** Verifica que cada tienda activa tenga su respectivo rol de dueño en admin_roles del shard. */
+export function findMissingStoreOwnerRoles(
+  stores: Array<{ slug?: string; id?: string; ownerEmail?: string; projectId?: string }>,
+  snapshot: ShardSnapshot,
+): IntegrityFinding[] {
+  const findings: IntegrityFinding[] = [];
+  const adminRoleDocs = snapshot.collections['admin_roles'] ?? [];
+
+  for (const store of stores) {
+    const tenant = (store.slug || store.id || '').trim();
+    const ownerEmail = (store.ownerEmail || '').trim().toLowerCase();
+    if (!tenant || !ownerEmail) continue;
+    if (!snapshot.tenants.has(tenant)) continue;
+
+    const hasRole = adminRoleDocs.some((d) => {
+      const email = ((d.data?.['email'] as string) || '').trim().toLowerCase();
+      const docId = d.id.toLowerCase();
+      return (
+        (email === ownerEmail && (d.storeId === tenant || d.data?.['tenantId'] === tenant)) ||
+        docId === `${tenant.toLowerCase()}_${ownerEmail}` ||
+        docId === ownerEmail
+      );
+    });
+
+    if (!hasRole) {
+      findings.push({
+        key: `data-integrity:missing-admin-role:${snapshot.projectId}:${tenant}:${ownerEmail}`,
+        severity: 'critical',
+        kind: 'missing_admin_role',
+        tenant,
+        projectId: snapshot.projectId,
+        title: `Falta rol de administrador en Firestore para «${tenant}»`,
+        message:
+          `El dueño ${ownerEmail} no tiene registro en admin_roles del shard ${snapshot.projectId}. ` +
+          `No podrá autenticarse como administrador.`,
+      });
+    }
+  }
+
+  return findings;
+}
+
+/** Verifica que los usuarios de Auth con rol administrativo tengan claims válidos (admin: true). */
+export function findMissingAdminClaims(
+  projectId: string,
+  users: Array<{ uid: string; email?: string; claims?: Record<string, unknown> }>,
+  adminRoleEmails: Set<string>,
+): IntegrityFinding[] {
+  const findings: IntegrityFinding[] = [];
+
+  for (const user of users) {
+    const email = (user.email || '').trim().toLowerCase();
+    if (!email || !adminRoleEmails.has(email)) continue;
+
+    const claims = user.claims ?? {};
+    const hasAdminClaim = claims['admin'] === true;
+    const hasRole = typeof claims['role'] === 'string' && claims['role'].length > 0;
+
+    if (!hasAdminClaim || !hasRole) {
+      findings.push({
+        key: `data-integrity:missing-admin-claim:${projectId}:${email}`,
+        severity: 'critical',
+        kind: 'missing_admin_claim',
+        tenant: (claims['tenantId'] as string) || '-',
+        projectId,
+        title: `Claims administrativos ausentes en Firebase Auth (${email})`,
+        message:
+          `El usuario ${email} (UID: ${user.uid}) está en admin_roles pero sus custom claims en ` +
+          `Firebase Auth (${projectId}) no tienen admin=true o carecen de rol asignado.`,
+      });
+    }
+  }
+
+  return findings;
 }
 
 /** Ejecuta todos los detectores sobre un snapshot (sin red). */
