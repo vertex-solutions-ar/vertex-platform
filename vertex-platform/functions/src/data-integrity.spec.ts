@@ -6,6 +6,8 @@ import {
   findInvalidShardEnvironments,
   findMissingSingletons,
   findMissingStoreId,
+  findMissingStoreOwnerRoles,
+  findMissingAdminClaims,
   findOrphanDocs,
   findUnreachableAssets,
   integrityAlertKey,
@@ -292,5 +294,79 @@ describe('staleAlertKeys e integrityAlertKey', () => {
         message: 'm',
       }),
     ).toBe('data-integrity:y');
+  });
+});
+
+describe('findMissingStoreOwnerRoles', () => {
+  it('detecta dueños de tiendas activas sin admin_roles en el shard', () => {
+    const findings = findMissingStoreOwnerRoles(
+      [
+        { slug: 'kasakalle', ownerEmail: 'ayefemma@gmail.com' },
+        { slug: 'otra-tienda', ownerEmail: 'dueno@test.com' },
+      ],
+      snapshot(
+        {
+          admin_roles: [
+            { id: 'kasakalle_ayefemma@gmail.com', data: { email: 'ayefemma@gmail.com' } },
+          ],
+        },
+        ['kasakalle', 'otra-tienda'],
+      ),
+    );
+
+    expect(findings).toHaveLength(1);
+    expect(findings[0].kind).toBe('missing_admin_role');
+    expect(findings[0].tenant).toBe('otra-tienda');
+    expect(findings[0].severity).toBe('critical');
+    expect(findings[0].key).toContain('otra-tienda:dueno@test.com');
+  });
+
+  it('no reporta hallazgos si todos los dueños tienen su documento', () => {
+    const findings = findMissingStoreOwnerRoles(
+      [{ slug: 'kasakalle', ownerEmail: 'ayefemma@gmail.com' }],
+      snapshot(
+        {
+          admin_roles: [
+            { id: 'kasakalle_ayefemma@gmail.com', data: { email: 'ayefemma@gmail.com' } },
+          ],
+        },
+        ['kasakalle'],
+      ),
+    );
+
+    expect(findings).toEqual([]);
+  });
+});
+
+describe('findMissingAdminClaims', () => {
+  it('detecta usuarios en admin_roles sin custom claim admin=true o sin rol', () => {
+    const findings = findMissingAdminClaims(
+      'vtx-sd-test',
+      [
+        { uid: 'u1', email: 'admin@test.com', claims: undefined },
+        { uid: 'u2', email: 'owner@test.com', claims: { admin: true, role: 'owner' } },
+        { uid: 'u3', email: 'staff@test.com', claims: { role: 'admin' } }, // missing admin: true
+      ],
+      new Set(['admin@test.com', 'owner@test.com', 'staff@test.com']),
+    );
+
+    expect(findings).toHaveLength(2);
+    expect(findings.map((f) => f.title)).toContain(
+      'Claims administrativos ausentes en Firebase Auth (admin@test.com)',
+    );
+    expect(findings.map((f) => f.title)).toContain(
+      'Claims administrativos ausentes en Firebase Auth (staff@test.com)',
+    );
+    expect(findings[0].severity).toBe('critical');
+  });
+
+  it('ignora usuarios que no figuran en admin_roles', () => {
+    const findings = findMissingAdminClaims(
+      'vtx-sd-test',
+      [{ uid: 'u1', email: 'cliente@test.com', claims: undefined }],
+      new Set(['admin@test.com']),
+    );
+
+    expect(findings).toEqual([]);
   });
 });
