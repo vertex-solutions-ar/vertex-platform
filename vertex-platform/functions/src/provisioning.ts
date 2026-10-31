@@ -3091,25 +3091,60 @@ async function executeProvisioningSteps(storeId: string): Promise<void> {
         }
       }
 
-      // Immediate Custom User Claims injection if user already exists in Firebase Authentication
+      // Immediate Custom User Claims injection on Shard Auth and Master Auth
       try {
-        const { getAuth } = await import('firebase-admin/auth');
-        const userRecord = await getAuth().getUserByEmail(normalizedOwnerEmail);
-        if (userRecord?.uid) {
-          await getAuth().setCustomUserClaims(userRecord.uid, {
+        const { getTenantAuth } = await import('./helpers');
+        const shardAuth = getTenantAuth(projectId);
+        let shardUserRecord: import('firebase-admin/auth').UserRecord | null = null;
+        try {
+          shardUserRecord = await shardAuth.getUserByEmail(normalizedOwnerEmail);
+        } catch (findErr: any) {
+          if (findErr?.code === 'auth/user-not-found') {
+            try {
+              shardUserRecord = await shardAuth.createUser({
+                email: normalizedOwnerEmail,
+                emailVerified: true,
+              });
+            } catch (createErr) {
+              console.warn(
+                `[provisioning:initAdmin] Pre-creating user in shard Auth non-fatal:`,
+                createErr,
+              );
+            }
+          }
+        }
+
+        if (shardUserRecord?.uid) {
+          await shardAuth.setCustomUserClaims(shardUserRecord.uid, {
             role: 'owner',
             tenantId,
             storeId: tenantId,
             admin: true,
           });
           console.info(
-            `[provisioning:initAdmin] Pre-injected custom user claims for owner ${normalizedOwnerEmail} on tenant ${tenantId}`,
+            `[provisioning:initAdmin] Pre-injected custom user claims for owner ${normalizedOwnerEmail} on shard Auth (${projectId})`,
           );
         }
+
+        // Also inject on Master Auth for cross-shard consistency
+        try {
+          const { getAuth } = await import('firebase-admin/auth');
+          const masterUserRecord = await getAuth().getUserByEmail(normalizedOwnerEmail);
+          if (masterUserRecord?.uid) {
+            await getAuth().setCustomUserClaims(masterUserRecord.uid, {
+              role: 'owner',
+              tenantId,
+              storeId: tenantId,
+              admin: true,
+            });
+          }
+        } catch {
+          // Master Auth user not yet created; non-fatal
+        }
       } catch (authClaimsErr) {
-        // User may not be registered in Auth yet; will sync upon first Google sign-in
         console.info(
-          `[provisioning:initAdmin] Owner user ${normalizedOwnerEmail} not yet in Auth (claims will sync on login)`,
+          `[provisioning:initAdmin] Non-fatal custom claims note for ${normalizedOwnerEmail}:`,
+          authClaimsErr,
         );
       }
 
