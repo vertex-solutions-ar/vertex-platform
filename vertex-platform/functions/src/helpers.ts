@@ -981,3 +981,21 @@ Nueva Tienda Creada en Vertex:
     );
   }
 }
+
+/**
+ * Obtiene la instancia de Firebase Auth correspondiente al shard del proyecto.
+ * Permite inyectar Custom User Claims o precrear usuarios directamente en el Auth
+ * del shard donde corre el storefront de la tienda.
+ */
+export function getTenantAuth(projectId: string): import('firebase-admin/auth').Auth {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { initializeApp, getApps } =
+    require('firebase-admin/app') as typeof import('firebase-admin/app');
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { getAuth } = require('firebase-admin/auth') as typeof import('firebase-admin/auth');
+
+  const appName = `shard-auth-${projectId}`;
+  const existing = getApps().find((a) => a.name === appName);
+  const app = existing ?? initializeApp({ projectId }, appName);
+  return getAuth(app);
+}
