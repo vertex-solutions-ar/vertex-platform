@@ -2423,7 +2423,10 @@ export const inviteStaff = onCall<InviteStaffPayload>(
               );
             }
           } catch (masterErr) {
-            console.warn(`[inviteStaff] Master admin_roles write note (${compositeKey}):`, masterErr);
+            console.warn(
+              `[inviteStaff] Master admin_roles write note (${compositeKey}):`,
+              masterErr,
+            );
           }
         }
       } catch (err) {
@@ -2431,6 +2434,60 @@ export const inviteStaff = onCall<InviteStaffPayload>(
         throw new HttpsError(
           'internal',
           'No se pudo preautorizar el correo en la tienda destino para OAuth de Google.',
+        );
+      }
+
+      // Pre-inject custom claims in Shard Auth (and Master Auth) for instant zero-latency admin login
+      try {
+        const { getTenantAuth } = await import('./helpers');
+        const shardAuth = getTenantAuth(projectId);
+        let shardUserRecord: import('firebase-admin/auth').UserRecord | null = null;
+        try {
+          shardUserRecord = await shardAuth.getUserByEmail(normalizedEmail);
+        } catch (findErr: any) {
+          if (findErr?.code === 'auth/user-not-found') {
+            try {
+              shardUserRecord = await shardAuth.createUser({
+                email: normalizedEmail,
+                emailVerified: true,
+              });
+            } catch (createErr) {
+              console.warn(`[inviteStaff] Pre-creating user in shard Auth non-fatal:`, createErr);
+            }
+          }
+        }
+
+        if (shardUserRecord?.uid) {
+          await shardAuth.setCustomUserClaims(shardUserRecord.uid, {
+            role: normalizedRole,
+            tenantId,
+            storeId: tenantId,
+            admin: true,
+          });
+          console.info(
+            `[inviteStaff] Custom user claims pre-injected for ${normalizedEmail} on shard Auth (${projectId})`,
+          );
+        }
+
+        // Master Auth sync
+        try {
+          const { getAuth } = await import('firebase-admin/auth');
+          const masterUserRecord = await getAuth().getUserByEmail(normalizedEmail);
+          if (masterUserRecord?.uid) {
+            await getAuth().setCustomUserClaims(masterUserRecord.uid, {
+              role: normalizedRole,
+              tenantId,
+              storeId: tenantId,
+              admin: true,
+            });
+          }
+        } catch {
+          // Master Auth user not yet created; non-fatal
+        }
+      } catch (authClaimsErr) {
+        console.warn(
+          `[inviteStaff] Non-fatal custom claims note for ${normalizedEmail}:`,
+          authClaimsErr,
         );
       }
     }
