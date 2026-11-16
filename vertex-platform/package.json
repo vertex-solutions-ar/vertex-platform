@@ -89,7 +89,7 @@
     "@typescript-eslint/eslint-plugin": "^8.72.1",
     "@typescript-eslint/parser": "^8.61.1",
     "@vitest/coverage-v8": "^4.1.12",
-    "cypress": "^15.21.1",
+    "cypress": "^15.21.2",
     "eslint": "^9.39.4",
     "firebase-admin": "^14.5.1",
     "husky": "^9.1.7",
